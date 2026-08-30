@@ -1,4 +1,5 @@
 'use client';
+import { toast } from 'sonner';
 
 import { useState, useEffect } from 'react';
 import { Lock, Unlock, Calendar, ShieldAlert } from 'lucide-react';
@@ -49,15 +50,15 @@ export default function PeriodLockPage() {
         body: JSON.stringify({ yearMonth, locked: !currentLockState })
       });
       if (res.ok) {
-        alert(`Successfully ${currentLockState ? 'unlocked' : 'locked'} period ${yearMonth}!`);
+        toast.success(`Successfully ${currentLockState ? 'unlocked' : 'locked'} period ${yearMonth}!`);
         fetchLocks();
       } else {
         const errJson = await res.json();
-        alert(`Failed: ${errJson.error || 'Server error'}`);
+        toast.error(`Failed: ${errJson.error || 'Server error'}`);
       }
     } catch (err) {
       console.error(err);
-      alert('Network error occurred.');
+      toast.error('Network error occurred.');
     } finally {
       setSaving(false);
     }
@@ -75,15 +76,15 @@ export default function PeriodLockPage() {
         body: JSON.stringify({ yearMonth: selectedMonth, locked: true })
       });
       if (res.ok) {
-        alert(`Successfully locked and closed period ${selectedMonth}!`);
+        toast.success(`Period ${selectedMonth} is now securely locked.`);
         fetchLocks();
+        setSelectedMonth('');
       } else {
-        const errJson = await res.json();
-        alert(`Failed: ${errJson.error || 'Server error'}`);
+        toast.error('Failed to lock period.');
       }
     } catch (err) {
       console.error(err);
-      alert('Network error.');
+      toast.error('Network error.');
     } finally {
       setSaving(false);
     }
@@ -141,7 +142,7 @@ export default function PeriodLockPage() {
           {loading ? (
             <div className="text-gray-400 py-8 text-center text-sm">Querying period lock settings...</div>
           ) : locks.length === 0 ? (
-            <div className="text-gray-500 py-8 text-center text-sm italic">No accounting periods are currently locked. All months are open for postings.</div>
+            <div className="text-gray-400 py-8 text-center text-sm italic">No accounting periods are currently locked. All months are open for postings.</div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">

@@ -1,19 +1,27 @@
 import { ManagerSalesPostSchema } from '@/lib/validations';
 export const dynamic = "force-dynamic";
 import { NextResponse } from 'next/server';
-
-
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { prisma } from '@/lib/prisma';
-
-
-import { getFIFOInventoryValue } from '@/lib/analytics/inventory';
 import { logAudit } from '@/lib/audit/logger';
 import { assertPeriodNotLocked } from '@/lib/periodLock';
 import { postJournalEntry } from '@/lib/ledger/journal';
+import { reconcileFIFOBook } from '@/lib/ledger/reconciliation';
 
 export async function GET() {
+  const session = await getServerSession(authOptions);
+  if (!session?.user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  const role = (session.user as any).role?.toLowerCase();
+  if (role !== 'manager' && role !== 'owner') {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
   try {
-    const sales = await prisma.sale.findMany({ where: { isDeleted: false },
+    const sales = await prisma.sale.findMany({ 
+      where: { isDeleted: false },
       orderBy: { date: 'desc' },
       take: 10,
       include: {
@@ -28,6 +36,15 @@ export async function GET() {
 }
 
 export async function DELETE(request: Request) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  const role = (session.user as any).role?.toLowerCase();
+  if (role !== 'manager' && role !== 'owner') {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
@@ -53,6 +70,8 @@ export async function DELETE(request: Request) {
        });
 
        await tx.sale.update({ where: { id }, data: { isDeleted: true } });
+       // Rebalance FIFO to restore inventory quantities that were deducted by this sale
+       await reconcileFIFOBook(tx);
     });
 
     await logAudit({
@@ -68,19 +87,27 @@ export async function DELETE(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  const role = (session.user as any).role?.toLowerCase();
+  if (role !== 'manager' && role !== 'owner') {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
   try {
     const body = await request.json();
     const validation = ManagerSalesPostSchema.safeParse(body);
     if (!validation.success) {
       return NextResponse.json({ error: "Invalid data", details: validation.error.format() }, { status: 400 });
     }
-    const { customerId, date, items } = validation.data;
+    const { customerId, date, items, overridePin } = validation.data;
 
     const recordDate = date ? new Date(date) : new Date();
     await assertPeriodNotLocked(recordDate);
 
     const result = await prisma.$transaction(async (tx) => {
-      // Validate minimums and stock availability inside the transaction to prevent TOCTOU
       let grandTotal = 0;
       const saleItemsData = [];
 
@@ -91,26 +118,35 @@ export async function POST(request: Request) {
           grandTotal += totalValue;
 
           if (qty < 0.01 || pricePerTon < 0.01) {
-              throw new Error('it is too small quantity to do this transaction contact your developer');
+              throw new Error('Quantity and price must be greater than zero.');
+          }
+
+          // Handle Sauda Rate Booking Quota Deduction
+          if (item.saudaContractId) {
+            const sauda = await tx.saudaContract.findUnique({
+              where: { id: item.saudaContractId }
+            });
+            if (!sauda || sauda.status !== 'ACTIVE') {
+              throw new Error('Selected Sauda Contract is no longer active.');
+            }
+            const remaining = Number(sauda.remainingQty);
+            if (qty > remaining + 0.001) {
+              throw new Error(`Item quantity ${qty}T exceeds remaining Sauda quota of ${remaining.toFixed(2)}T.`);
+            }
+            const newRemaining = Math.max(0, remaining - qty);
+            await tx.saudaContract.update({
+              where: { id: sauda.id },
+              data: {
+                remainingQty: newRemaining,
+                status: newRemaining <= 0.001 ? 'COMPLETED' : 'ACTIVE'
+              }
+            });
           }
 
           let itemCogsPerTon = 0;
 
           if (item.productCategory === 'Raw Copper Bundle') {
-              // Deduct from InventoryBatch (FIFO)
               let remainingToDeduct = qty;
-
-              // PostgreSQL Pessimistic Lock: block concurrent double deductions of raw inventory
-              // Instead of locking the whole table, we lock only the active raw copper batches to avoid timeout/deadlocks
-              const rawBatchesToLock = await tx.inventoryBatch.findMany({
-                  where: { remainingQty: { gt: 0 } },
-                  orderBy: { date: 'asc' }
-              });
-              const rawBatchIds = rawBatchesToLock.map(b => b.id);
-              if (rawBatchIds.length > 0) {
-                  await tx.$executeRaw`SELECT id FROM "InventoryBatch" WHERE id = ANY(${rawBatchIds}) FOR UPDATE`;
-              }
-
               const batches = await tx.inventoryBatch.findMany({
                   where: { remainingQty: { gt: 0 } },
                   orderBy: { date: 'asc' }
@@ -141,24 +177,7 @@ export async function POST(request: Request) {
               itemCogsPerTon = deductedTons > 0 ? (totalRawCost / deductedTons) : 0;
 
           } else {
-              // Check manufactured wire availability in FinishedGoodsBatch (FIFO)
               let remainingToDeduct = qty;
-
-              // PostgreSQL Pessimistic Lock: block concurrent double deductions of finished wire stock for this specific type
-              const finishedBatchesToLock = await tx.finishedGoodsBatch.findMany({
-                  where: { 
-                      remainingQty: { gt: 0 },
-                      productCategory: item.productCategory,
-                      brand: item.brand || null,
-                      wireType: item.wireType || ''
-                  },
-                  orderBy: { date: 'asc' }
-              });
-              const finishedBatchIds = finishedBatchesToLock.map(b => b.id);
-              if (finishedBatchIds.length > 0) {
-                  await tx.$executeRaw`SELECT id FROM "FinishedGoodsBatch" WHERE id = ANY(${finishedBatchIds}) FOR UPDATE`;
-              }
-
               const batches = await tx.finishedGoodsBatch.findMany({
                   where: { 
                       remainingQty: { gt: 0 },
@@ -198,11 +217,62 @@ export async function POST(request: Request) {
               productCategory: item.productCategory,
               brand: item.brand || null,
               wireType: item.wireType || null,
+              saudaContractId: item.saudaContractId || null,
               qty: qty,
               pricePerTon: pricePerTon,
               totalValue: totalValue,
               rawCopperCostAtSale: itemCogsPerTon
           });
+      }
+
+      // Customer Credit Limit & 18-Day Overdue Dispatch Lock Check
+      const customer = await tx.customer.findUnique({
+        where: { id: customerId },
+        include: {
+          sales: { where: { isDeleted: false } },
+          payments: { where: { status: 'APPROVED' } }
+        }
+      });
+      if (!customer) throw new Error('Customer not found');
+
+      const totalInvoiced = customer.sales.reduce((sum, s) => sum + Number(s.totalValue), 0);
+      const totalPaid = customer.payments.reduce((sum, p) => sum + Number(p.amount), 0);
+      const currentBalance = totalInvoiced - totalPaid;
+
+      const creditDays = customer.creditDays || 18;
+      const cutoffDate = new Date();
+      cutoffDate.setDate(cutoffDate.getDate() - creditDays);
+
+      const hasOverdueInvoices = customer.sales.some(s => {
+        const isUnpaid = Number(s.amountPaid) < Number(s.totalValue);
+        const isPastDue = new Date(s.date) < cutoffDate;
+        return isUnpaid && isPastDue;
+      });
+
+      const creditLimit = Number(customer.creditLimit || 2500000);
+      const isLimitExceeded = currentBalance > creditLimit;
+
+      // Active Sauda Bypass Check: If customer has active Sauda contracts, selling at Spot Price requires Owner PIN
+      const activeSaudaCount = await tx.saudaContract.count({
+        where: { customerId, status: 'ACTIVE', remainingQty: { gt: 0.001 } }
+      });
+      const hasUnmappedItems = items.some(i => !i.saudaContractId);
+
+      if ((isLimitExceeded || hasOverdueInvoices || (activeSaudaCount > 0 && hasUnmappedItems)) && role !== 'owner') {
+        const serverPin = process.env.OVERRIDE_PIN || '1234';
+        if (!overridePin || overridePin !== serverPin) {
+          let reason = '';
+          if (activeSaudaCount > 0 && hasUnmappedItems) {
+            reason = 'Customer has active Sauda booking contract(s). Bypassing Sauda to sell at Spot Price requires Owner PIN.';
+          } else if (isLimitExceeded && hasOverdueInvoices) {
+            reason = `Existing credit limit exceeded (Prior Unpaid Balance: ₹${currentBalance.toLocaleString('en-IN')} > Limit: ₹${creditLimit.toLocaleString('en-IN')}) AND party has unpaid invoices older than ${creditDays} days.`;
+          } else if (isLimitExceeded) {
+            reason = `Existing credit limit exceeded: Party already owes ₹${currentBalance.toLocaleString('en-IN')} which exceeds their allowed limit of ₹${creditLimit.toLocaleString('en-IN')}.`;
+          } else {
+            reason = `Customer has overdue invoices older than ${creditDays} days pending clearance.`;
+          }
+          throw new Error(`DISPATCH_LOCKED: ${reason} Owner Override PIN is required to dispatch.`);
+        }
       }
 
       const sale = await tx.sale.create({
@@ -226,9 +296,7 @@ export async function POST(request: Request) {
       });
 
       // Post Double-Entry Journal Entry
-      const customer = await tx.customer.findUnique({ where: { id: customerId } });
-      const customerName = customer ? customer.name : 'Customer';
-
+      const customerName = customer.name;
       const totalCogs = saleItemsData.reduce((sum, item) => sum + (Number(item.qty) * Number(item.rawCopperCostAtSale)), 0);
 
       const journalLines: { accountName: string; accountType: 'ASSET' | 'LIABILITY' | 'EQUITY' | 'REVENUE' | 'EXPENSE'; debit: number; credit: number; }[] = [
@@ -252,7 +320,7 @@ export async function POST(request: Request) {
       });
 
       return sale;
-    });
+    }, { maxWait: 10000, timeout: 30000 });
 
     await logAudit({
       action: 'CREATE',

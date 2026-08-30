@@ -54,7 +54,7 @@ export default function InventoryDashboard() {
             <Package size={18} /> Remaining Stock
           </div>
           <div className="text-3xl font-bold text-white">{Number(data.remainingStockTons).toFixed(2)} Tons</div>
-          <div className="text-sm text-gray-500 mt-1">
+          <div className="text-sm text-gray-400 mt-1">
             {data.alert.daysRemaining !== null ? `${data.alert.daysRemaining} days of supply left` : 'Unknown supply remaining'}
           </div>
         </div>
@@ -62,13 +62,13 @@ export default function InventoryDashboard() {
         <div className="card">
           <div className="flex items-center gap-2 text-gray-400 mb-2">Current Market Price</div>
           <div className="text-3xl font-bold text-white">₹ {(data.currentMarketPricePerTon / 1000).toLocaleString('en-IN', {maximumFractionDigits:2})}</div>
-          <div className="text-sm text-gray-500 mt-1">per KG</div>
+          <div className="text-sm text-gray-400 mt-1">per KG</div>
         </div>
 
         <div className="card">
           <div className="flex items-center gap-2 text-gray-400 mb-2">Total FIFO Cost (Exact)</div>
           <div className="text-3xl font-bold text-white">₹ {data.fifoCost.toLocaleString('en-IN', {maximumFractionDigits: 0})}</div>
-          <div className="text-sm text-gray-500 mt-1">Based on exact purchase history</div>
+          <div className="text-sm text-gray-400 mt-1">Based on exact purchase history</div>
         </div>
       </div>
 
@@ -76,13 +76,13 @@ export default function InventoryDashboard() {
         <h3 className="text-xl text-gray-400 mb-4">Stock Valuation Profit / Loss</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           <div>
-            <p className="text-gray-500 mb-1">If sold at current market rate:</p>
+            <p className="text-gray-400 mb-1">If sold at current market rate:</p>
             <div className="text-4xl font-bold text-white">
               ₹ {data.currentMarketValue.toLocaleString('en-IN', {maximumFractionDigits: 0})}
             </div>
           </div>
           <div className="flex flex-col justify-center">
-            <p className="text-gray-500 mb-1">Net Gain/Loss vs Cost:</p>
+            <p className="text-gray-400 mb-1">Net Gain/Loss vs Cost:</p>
             <div className={`text-3xl font-bold flex items-center gap-2 ${data.isProfit ? 'text-green-500' : 'text-red-500'}`}>
               {data.isProfit ? <TrendingUp /> : <TrendingDown />}
               ₹ {Math.abs(data.netProfitLoss).toLocaleString('en-IN', {maximumFractionDigits: 0})}

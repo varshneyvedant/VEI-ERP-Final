@@ -1,34 +1,80 @@
-import { withAuth } from "next-auth/middleware";
-import { NextResponse } from "next/server";
+import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
+import { getToken } from 'next-auth/jwt';
 
-export default withAuth(
-  function middleware(req) {
-    const token = req.nextauth.token;
-    const path = req.nextUrl.pathname;
+export async function proxy(request: NextRequest) {
+  const { pathname } = request.nextUrl;
 
-    if (!token) {
-      return NextResponse.redirect(new URL('/login', req.url));
-    }
-
-    if (path === '/') {
-       if ((token.role as string)?.toLowerCase() === 'owner') {
-          return NextResponse.redirect(new URL('/owner/dashboard', req.url));
-       } else {
-          return NextResponse.redirect(new URL('/manager/dashboard', req.url));
-       }
-    }
-
-    if ((path.startsWith('/owner') || path.startsWith('/api/owner')) && (token.role as string)?.toLowerCase() !== 'owner') {
-      return NextResponse.redirect(new URL('/login?error=AccessDenied', req.url));
-    }
-  },
-  {
-    callbacks: {
-      authorized: ({ token }) => !!token,
-    },
+  // Allow public routes
+  if (
+    pathname.startsWith('/login') ||
+    pathname.startsWith('/api/auth') ||
+    pathname.startsWith('/_next') ||
+    pathname === '/favicon.ico'
+  ) {
+    return NextResponse.next();
   }
-);
+
+  const token = await getToken({
+    req: request,
+    secret: process.env.NEXTAUTH_SECRET,
+  });
+
+  const tokenRole = (token?.role as string)?.toLowerCase();
+
+  // API Routes
+  if (pathname.startsWith('/api/')) {
+    if (!token) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    if (pathname.startsWith('/api/owner/')) {
+      if (tokenRole !== 'owner') {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
+    }
+
+    if (pathname.startsWith('/api/manager/')) {
+      if (tokenRole !== 'manager' && tokenRole !== 'owner') {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
+    }
+
+    return NextResponse.next();
+  }
+
+  // Page Routes
+  if (!token) {
+    const url = request.nextUrl.clone();
+    url.pathname = '/login';
+    return NextResponse.redirect(url);
+  }
+
+  // Root redirect
+  if (pathname === '/') {
+    const url = request.nextUrl.clone();
+    if (tokenRole === 'owner') {
+      url.pathname = '/owner/dashboard';
+    } else if (tokenRole === 'manager') {
+      url.pathname = '/manager/dashboard';
+    } else {
+      url.pathname = '/login'; // fallback
+    }
+    return NextResponse.redirect(url);
+  }
+
+  // Owner pages
+  if (pathname.startsWith('/owner/')) {
+    if (tokenRole !== 'owner') {
+      const url = request.nextUrl.clone();
+      url.pathname = '/login';
+      return NextResponse.redirect(url);
+    }
+  }
+
+  return NextResponse.next();
+}
 
 export const config = {
-  matcher: ['/owner/:path*', '/manager/:path*', '/', '/api/owner/:path*', '/api/manager/:path*']
+  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
 };

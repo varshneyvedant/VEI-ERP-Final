@@ -1,4 +1,5 @@
 'use client';
+import { toast } from 'sonner';
 
 import { formatDateIST } from '@/lib/format';
 
@@ -25,12 +26,13 @@ export default function ExpensesPage() {
 
   const handleConfirmAndRecord = async () => {
     setShowConfirmModal(false);
-    await fetch('/api/manager/expenses', {
+    const res = await fetch('/api/manager/expenses', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(formData)
     });
-    alert('Expense logged successfully!');
+    if (!res.ok) { toast.error('Operation failed'); return; }
+    toast.success('Expense logged successfully!');
     setFormData({ category: 'Electricity', amount: '', description: '', expenseMonth: '', date: getCurrentISTInput() });
   };
 
@@ -43,8 +45,9 @@ export default function ExpensesPage() {
       <form onSubmit={handleSubmit} className="card flex flex-col gap-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm text-gray-400 mb-1">Expense Category</label>
+            <label htmlFor="category" className="block text-sm text-gray-400 mb-1">Expense Category</label>
             <select
+              id="category"
               className="input-field"
               value={formData.category}
               onChange={e => setFormData({...formData, category: e.target.value})}
@@ -58,8 +61,9 @@ export default function ExpensesPage() {
             </select>
           </div>
           <div>
-            <label className="block text-sm text-gray-400 mb-1">Date of Record</label>
+            <label htmlFor="date" className="block text-sm text-gray-400 mb-1">Date of Record</label>
             <input
+              id="date"
               type="datetime-local"
               className="input-field"
               min="2000-01-01"
@@ -71,8 +75,9 @@ export default function ExpensesPage() {
         </div>
 
         <div>
-          <label className="block text-sm text-gray-400 mb-1">Amount (₹)</label>
+          <label htmlFor="amount" className="block text-sm text-gray-400 mb-1">Amount (₹)</label>
           <input
+            id="amount"
             type="number"
             step="0.01"
             className="input-field"
@@ -83,19 +88,21 @@ export default function ExpensesPage() {
         </div>
 
         <div>
-          <label className="block text-sm text-gray-400 mb-1">Expense Month (For Recurring Bills)</label>
+          <label htmlFor="expenseMonth" className="block text-sm text-gray-400 mb-1">Expense Month (For Recurring Bills)</label>
           <input
+            id="expenseMonth"
             type="month"
             className="input-field"
             value={formData.expenseMonth}
             onChange={e => setFormData({...formData, expenseMonth: e.target.value})}
           />
-          <p className="text-xs text-gray-500 mt-1">Leave blank if this is a one-time/adhoc expense.</p>
+          <p className="text-xs text-gray-400 mt-1">Leave blank if this is a one-time/adhoc expense.</p>
         </div>
 
         <div>
-          <label className="block text-sm text-gray-400 mb-1">Description (Optional)</label>
+          <label htmlFor="description" className="block text-sm text-gray-400 mb-1">Description (Optional)</label>
           <input
+            id="description"
             type="text"
             className="input-field"
             value={formData.description}
@@ -119,26 +126,26 @@ export default function ExpensesPage() {
 
               <div className="space-y-3 mb-6 text-sm text-gray-300">
                  <div className="flex justify-between">
-                    <span className="text-gray-500">Expense Category:</span>
+                    <span className="text-gray-400">Expense Category:</span>
                     <span className="font-bold text-white">{formData.category}</span>
                  </div>
                  <div className="flex justify-between">
-                    <span className="text-gray-500">Expense Amount:</span>
+                    <span className="text-gray-400">Expense Amount:</span>
                     <span className="font-bold text-red-500">₹ {Number(formData.amount).toLocaleString('en-IN', {maximumFractionDigits:2})}</span>
                  </div>
                  {formData.expenseMonth && (
                     <div className="flex justify-between">
-                       <span className="text-gray-500">Expense Month:</span>
+                       <span className="text-gray-400">Expense Month:</span>
                        <span className="font-bold text-white">{formData.expenseMonth}</span>
                     </div>
                  )}
                  {formData.description && (
                     <div className="flex justify-between">
-                       <span className="text-gray-500">Description:</span>
+                       <span className="text-gray-400">Description:</span>
                        <span className="font-bold text-white">{formData.description}</span>
                     </div>
                  )}
-                 <div className="flex justify-between border-t border-[#333]/30 pt-2 text-xs text-gray-500">
+                 <div className="flex justify-between border-t border-[#333]/30 pt-2 text-xs text-gray-400">
                     <span>Log Date:</span>
                     <span>{formData.date ? formatDateIST(formData.date) : 'Current Time'}</span>
                  </div>

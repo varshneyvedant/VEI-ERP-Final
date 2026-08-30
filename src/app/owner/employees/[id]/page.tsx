@@ -140,7 +140,7 @@ function EmployeeDetailContent() {
           <div className="card border-l-4 border-l-blue-500 mb-6 bg-gradient-to-r from-[#1e1e1e] to-[#252525]">
              <h3 className="text-sm text-gray-400 mb-1 flex items-center gap-2"><Star size={16} className="text-yellow-500" /> System Evaluation & Rating</h3>
              <div className="flex items-center gap-6">
-                <div className="text-4xl font-black text-white">{data.metrics.rating} <span className="text-lg text-gray-500">/ 5.0</span></div>
+                <div className="text-4xl font-black text-white">{data.metrics.rating} <span className="text-lg text-gray-400">/ 5.0</span></div>
                 <div className={`font-medium ${data.metrics.recommendationColor} bg-[#2a2a2a] p-3 rounded flex-1`}>
                    AI Recommendation: {data.metrics.recommendation}
                 </div>
@@ -181,7 +181,7 @@ function EmployeeDetailContent() {
             <div className="card">
               <div className="text-gray-400 text-sm mb-1 flex items-center gap-2"><Clock size={16} /> Estimated Productivity</div>
               <div className="text-3xl font-bold text-white">₹ {data.metrics.productivityRate.toLocaleString('en-IN', {maximumFractionDigits:0})}/hr</div>
-              <div className="text-xs text-gray-500 mt-1">Effective Cost based on {data.metrics.effectiveHours} hours worked</div>
+              <div className="text-xs text-gray-400 mt-1">Effective Cost based on {data.metrics.effectiveHours} hours worked</div>
             </div>
             <div className="card">
               <div className="text-gray-400 text-sm mb-1 flex items-center gap-2"><Calendar size={16} /> Attendance ({timeframe})</div>
@@ -214,7 +214,7 @@ function EmployeeDetailContent() {
                 <div className="flex justify-between items-center mb-4">
                   <h3 className="text-xl font-bold flex items-center gap-2"><FileText size={20} className="text-red-500"/> Advance History (All-Time)</h3>
                   <div className="text-right">
-                    <div className="text-xs text-gray-500">Current Pending Balance</div>
+                    <div className="text-xs text-gray-400">Current Pending Balance</div>
                     <div className={`font-bold ${data.metrics.totalAdvances > 0 ? 'text-orange-500' : 'text-green-500'}`}>
                        ₹ {data.metrics.totalAdvances.toLocaleString('en-IN')}
                     </div>
@@ -227,14 +227,14 @@ function EmployeeDetailContent() {
                             <div className={`font-bold ${item.type === 'ADVANCE' ? 'text-orange-400' : 'text-green-400'}`}>
                                {item.type === 'ADVANCE' ? '-' : '+'} ₹ {item.amount.toLocaleString('en-IN')}
                             </div>
-                            <div className="text-xs text-gray-500">
+                            <div className="text-xs text-gray-400">
                                {item.type === 'ADVANCE' ? 'Advance Taken' : 'Repayment'} • {item.reason}
                             </div>
                          </div>
                          <div className="text-sm text-gray-400">{formatDateIST(item.date)}</div>
                       </div>
                    ))}
-                   {advanceFeed.length === 0 && <div className="text-gray-500 p-4 text-center">No advance history found.</div>}
+                   {advanceFeed.length === 0 && <div className="text-gray-400 p-4 text-center">No advance history found.</div>}
                 </div>
              </div>
           </div>

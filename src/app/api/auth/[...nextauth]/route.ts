@@ -20,7 +20,11 @@ export const authOptions: NextAuthOptions = {
           where: { username: credentials.username }
         });
 
-        if (!user) return null;
+        if (!user) {
+          // Constant-time: prevent user enumeration via timing
+          await bcrypt.compare(credentials.password, '$2b$10$dummyhashtopreventtimingattacks000000000000000');
+          return null;
+        }
 
         const isPasswordValid = await bcrypt.compare(credentials.password, user.password);
 
@@ -38,12 +42,16 @@ export const authOptions: NextAuthOptions = {
     async jwt({ token, user }) {
       if (user) {
         token.role = user.role;
+        token.id = user.id;
+        token.username = user.name || undefined;
       }
       return token;
     },
     async session({ session, token }) {
       if (token && session.user) {
         session.user.role = token.role as string;
+        session.user.id = token.id as string;
+        session.user.username = token.username as string;
       }
       return session;
     }
@@ -54,7 +62,7 @@ export const authOptions: NextAuthOptions = {
   session: {
     strategy: 'jwt',
   },
-  secret: process.env.NEXTAUTH_SECRET || 'fallback_secret_for_development',
+  secret: process.env.NEXTAUTH_SECRET!,
 };
 
 const handler = NextAuth(authOptions);

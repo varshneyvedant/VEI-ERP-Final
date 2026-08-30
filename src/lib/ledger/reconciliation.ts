@@ -7,6 +7,23 @@ import { Prisma } from '@prisma/client';
  * sales COGS cost stamps, and associated ledger journal entries since inception.
  */
 export async function reconcileFIFOBook(tx: Prisma.TransactionClient) {
+  // 0. Zero out batches for deleted purchases and productions
+  const deletedPurchases = await tx.purchase.findMany({ where: { isDeleted: true } });
+  for (const dp of deletedPurchases) {
+    await tx.inventoryBatch.updateMany({
+      where: { purchaseId: dp.id },
+      data: { remainingQty: 0 }
+    });
+  }
+
+  const deletedProductions = await tx.production.findMany({ where: { isDeleted: true } });
+  for (const dp of deletedProductions) {
+    await tx.finishedGoodsBatch.updateMany({
+      where: { productionId: dp.id },
+      data: { remainingQty: 0 }
+    });
+  }
+
   // 1. Reset all raw copper batches to full capacity
   const purchases = await tx.purchase.findMany({
     where: { isDeleted: false },
@@ -92,16 +109,23 @@ export async function reconcileFIFOBook(tx: Prisma.TransactionClient) {
 
       if (journalEntry) {
         const materialValue = qtyToDeduct * calculatedCostPerTon;
-        // In production: Dr Inventory Finished Wires, Cr Inventory Raw Copper
+        // In production: Dr Inventory - Finished Goods, Cr Inventory - Raw Materials
         for (const line of journalEntry.lines) {
-          if (line.accountName === 'Inventory') {
-            await tx.journalLine.update({
-              where: { id: line.id },
-              data: {
-                debit: line.debit.greaterThan(0) ? materialValue : 0,
-                credit: line.credit.greaterThan(0) ? materialValue : 0
-              }
-            });
+          if (line.accountName === 'Inventory - Finished Goods' || line.accountName === 'Inventory') {
+            if (line.debit.greaterThan(0)) {
+              await tx.journalLine.update({
+                where: { id: line.id },
+                data: { debit: materialValue, accountName: 'Inventory - Finished Goods' }
+              });
+            }
+          }
+          if (line.accountName === 'Inventory - Raw Materials' || line.accountName === 'Inventory') {
+            if (line.credit.greaterThan(0)) {
+              await tx.journalLine.update({
+                where: { id: line.id },
+                data: { credit: materialValue, accountName: 'Inventory - Raw Materials' }
+              });
+            }
           }
         }
       }

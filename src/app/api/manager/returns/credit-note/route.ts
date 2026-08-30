@@ -1,12 +1,24 @@
 export const dynamic = "force-dynamic";
 import { NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { prisma } from '@/lib/prisma';
 import { logAudit } from '@/lib/audit/logger';
 import { assertPeriodNotLocked } from '@/lib/periodLock';
 import { postJournalEntry } from '@/lib/ledger/journal';
 import { Prisma } from '@prisma/client';
+import { reconcileFIFOBook } from '@/lib/ledger/reconciliation';
 
 export async function GET() {
+  const session = await getServerSession(authOptions);
+  if (!session?.user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  const role = (session.user as any).role?.toLowerCase();
+  if (role !== 'manager' && role !== 'owner') {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
   try {
     const creditNotes = await prisma.creditNote.findMany({
       orderBy: { date: 'desc' },
@@ -23,6 +35,15 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  const role = (session.user as any).role?.toLowerCase();
+  if (role !== 'manager' && role !== 'owner') {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
   try {
     const body = await request.json();
     const { saleId, qtyReturned, amountCredited, reason } = body;
@@ -37,7 +58,7 @@ export async function POST(request: Request) {
     const result = await prisma.$transaction(async (tx) => {
       const sale = await tx.sale.findUnique({
         where: { id: saleId },
-        include: { customer: true }
+        include: { customer: true, items: true }
       });
 
       if (!sale) throw new Error('Invoice Sale not found');
@@ -63,17 +84,43 @@ export async function POST(request: Request) {
         }
       });
 
+      // Calculate COGS amount to reverse
+      const totalSaleQty = sale.items.reduce((acc, item) => acc + Number(item.qty), 0);
+      const totalCogs = sale.items.reduce((acc, item) => acc + (Number(item.qty) * Number(item.rawCopperCostAtSale)), 0);
+      const cogsAmount = totalSaleQty > 0 ? (totalCogs / totalSaleQty) * Number(qtyReturned) : 0;
+
       // Post Double-Entry Journal Entry
       await postJournalEntry(tx, {
         date: new Date(),
         description: `Credit Note: Sales Return from ${sale.customer.name} (ID: ${creditNote.id})`,
-        referenceType: 'CREDIT_NOTE',
+        referenceType: 'CREDIT_NOTE' as any,
         referenceId: creditNote.id,
         lines: [
           { accountName: 'Sales Revenue', accountType: 'REVENUE' as const, debit: Number(amountCredited), credit: 0 },
-          { accountName: 'Accounts Receivable', accountType: 'ASSET' as const, debit: 0, credit: Number(amountCredited) }
+          { accountName: 'Accounts Receivable', accountType: 'ASSET' as const, debit: 0, credit: Number(amountCredited) },
+          { accountName: 'Inventory', accountType: 'ASSET' as const, debit: cogsAmount, credit: 0 },
+          { accountName: 'Cost of Goods Sold', accountType: 'EXPENSE' as const, debit: 0, credit: cogsAmount }
         ]
       });
+
+      // Restore inventory
+      const mainItem = sale.items[0];
+      if (mainItem) {
+          const recentBatch = await tx.finishedGoodsBatch.findFirst({
+              where: { 
+                 productCategory: mainItem.productCategory,
+                 brand: mainItem.brand,
+                 wireType: mainItem.wireType || ''
+              },
+              orderBy: { date: 'desc' }
+          });
+          if (recentBatch) {
+             await tx.finishedGoodsBatch.update({
+                 where: { id: recentBatch.id },
+                 data: { remainingQty: Number(recentBatch.remainingQty) + Number(qtyReturned) }
+             });
+          }
+      }
 
       return creditNote;
     });

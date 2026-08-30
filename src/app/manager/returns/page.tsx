@@ -1,4 +1,5 @@
 'use client';
+import { toast } from 'sonner';
 
 import { useState, useEffect } from 'react';
 import { RotateCcw, ArrowRightLeft, Check, Download, AlertTriangle } from 'lucide-react';
@@ -80,7 +81,7 @@ export default function ReturnsPage() {
       });
 
       if (res.ok) {
-        alert(`${activeTab === 'credit' ? 'Credit Note' : 'Debit Note'} successfully registered! Financial ledgers and general ledger journals have been adjusted.`);
+        toast.success(`${activeTab === 'credit' ? 'Credit Note' : 'Debit Note'} successfully registered!`);
         // Reset forms
         if (activeTab === 'credit') {
           setCreditForm({ saleId: sales[0]?.id || '', qtyReturned: '', amountCredited: '', reason: '' });
@@ -90,7 +91,7 @@ export default function ReturnsPage() {
         fetchData();
       } else {
         const errData = await res.json();
-        alert(`Failed to log returns: ${errData.error || 'Server error'}`);
+        toast.error(`Failed to log returns: ${errData.error || 'Server error'}`);
       }
     } catch (err) {
       console.error(err);
@@ -211,7 +212,7 @@ export default function ReturnsPage() {
                         <p className="flex justify-between"><span>Total Tonnage:</span> <strong className="text-white font-mono">{totalTons.toFixed(2)} Tons</strong></p>
                       </div>
                       <div className="mt-2 border-t border-[#333] pt-1.5">
-                        <span className="text-[10px] uppercase font-bold text-gray-500 block mb-1">Items Sold</span>
+                        <span className="text-[10px] uppercase font-bold text-gray-400 block mb-1">Items Sold</span>
                         <div className="space-y-1 max-h-32 overflow-y-auto pr-1">
                           {selectedSale.items?.map((item: any) => (
                             <div key={item.id} className="bg-[#1e1e1e] p-1.5 rounded flex justify-between items-center text-[10px] border border-[#2a2a2a]">
@@ -223,7 +224,7 @@ export default function ReturnsPage() {
                               </div>
                               <div className="text-right whitespace-nowrap">
                                 <span className="text-green-400 font-bold font-mono">{Number(item.qty).toFixed(2)} T</span>
-                                <span className="text-gray-500 block text-[8px]">@ {formatCurrency(Number(item.pricePerTon))} / T</span>
+                                <span className="text-gray-400 block text-[8px]">@ {formatCurrency(Number(item.pricePerTon))} / T</span>
                               </div>
                             </div>
                           ))}
@@ -252,7 +253,7 @@ export default function ReturnsPage() {
                   onChange={e => setCreditForm({ ...creditForm, amountCredited: e.target.value })}
                   placeholder="e.g. 500000" required
                 />
-                <p className="text-[10px] text-gray-500 mt-1">This will deduct from the customer's outstanding Accounts Receivable balance.</p>
+                <p className="text-[10px] text-gray-400 mt-1">This will deduct from the customer's outstanding Accounts Receivable balance.</p>
               </div>
 
               <div>
@@ -325,7 +326,7 @@ export default function ReturnsPage() {
                   onChange={e => setDebitForm({ ...debitForm, amountDebited: e.target.value })}
                   placeholder="e.g. 350000" required
                 />
-                <p className="text-[10px] text-gray-500 mt-1">This will deduct from our outstanding Accounts Payable liability with the supplier.</p>
+                <p className="text-[10px] text-gray-400 mt-1">This will deduct from our outstanding Accounts Payable liability with the supplier.</p>
               </div>
 
               <div>
@@ -375,7 +376,7 @@ export default function ReturnsPage() {
             <div className="text-gray-400 text-center py-8">Loading history ledger...</div>
           ) : activeTab === 'credit' ? (
             creditNotes.length === 0 ? (
-              <div className="text-gray-500 text-center py-8 italic text-sm">No sales returns credit notes registered yet.</div>
+              <div className="text-gray-400 text-center py-8 italic text-sm">No sales returns credit notes registered yet.</div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm">
@@ -404,7 +405,7 @@ export default function ReturnsPage() {
             )
           ) : (
             debitNotes.length === 0 ? (
-              <div className="text-gray-500 text-center py-8 italic text-sm">No supplier returns debit notes registered yet.</div>
+              <div className="text-gray-400 text-center py-8 italic text-sm">No supplier returns debit notes registered yet.</div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm">
@@ -447,11 +448,11 @@ export default function ReturnsPage() {
 
               <div className="space-y-3 mb-6 text-sm text-gray-300 bg-[#222] p-4 rounded border border-[#333]">
                  <div className="flex justify-between">
-                    <span className="text-gray-500">Return Type:</span>
+                    <span className="text-gray-400">Return Type:</span>
                     <span className="font-bold text-white uppercase">{activeTab === 'credit' ? 'Sales Return (Credit Note)' : 'Supplier Return (Debit Note)'}</span>
                  </div>
                  <div className="flex justify-between">
-                    <span className="text-gray-500">Stakeholder Name:</span>
+                    <span className="text-gray-400">Stakeholder Name:</span>
                     <span className="font-bold text-white">
                        {activeTab === 'credit' 
                          ? sales.find(s => s.id === creditForm.saleId)?.customer?.name 
@@ -459,13 +460,13 @@ export default function ReturnsPage() {
                     </span>
                  </div>
                  <div className="flex justify-between">
-                    <span className="text-gray-500">Qty Returned:</span>
+                    <span className="text-gray-400">Qty Returned:</span>
                     <span className="font-bold text-white">
                       {activeTab === 'credit' ? creditForm.qtyReturned : debitForm.qtyReturned} Tons
                     </span>
                  </div>
                  <div className="flex justify-between">
-                    <span className="text-gray-500">Valuation:</span>
+                    <span className="text-gray-400">Valuation:</span>
                     <span className={`font-bold ${activeTab === 'credit' ? 'text-green-400' : 'text-red-400'}`}>
                       {formatCurrency(Number(activeTab === 'credit' ? creditForm.amountCredited : debitForm.amountDebited))}
                     </span>

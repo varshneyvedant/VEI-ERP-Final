@@ -1,4 +1,5 @@
 'use client';
+import { toast } from 'sonner';
 
 import { useState } from 'react';
 
@@ -7,12 +8,13 @@ export default function MarketPricePage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await fetch('/api/manager/market-price', {
+    const res = await fetch('/api/manager/market-price', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ price })
     });
-    alert('Daily Market Price updated successfully!');
+    if (!res.ok) { toast.error('Operation failed'); return; }
+    toast.success('Daily Market Price updated successfully!');
     setPrice('');
   };
 
@@ -36,7 +38,7 @@ export default function MarketPricePage() {
           />
         </div>
 
-        <p className="text-gray-500 text-sm mt-2">
+        <p className="text-gray-400 text-sm mt-2">
           This value is used by the system to dynamically calculate the current stock valuation and net profit/loss for the owner dashboard.
         </p>
 

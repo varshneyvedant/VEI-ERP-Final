@@ -78,7 +78,7 @@ function FinishedProductDetailContent() {
                      </tr>
                   ))}
                   {history.length === 0 && (
-                     <tr><td colSpan={4} className="p-4 text-center text-gray-500">No activity recorded for this product yet.</td></tr>
+                     <tr><td colSpan={4} className="p-4 text-center text-gray-400">No activity recorded for this product yet.</td></tr>
                   )}
                </tbody>
             </table>

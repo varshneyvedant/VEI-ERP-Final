@@ -1,4 +1,5 @@
 'use client';
+import { toast } from 'sonner';
 
 
 import { getCurrentISTInput, formatDateIST } from '@/lib/format';
@@ -53,7 +54,7 @@ export default function PurchasePage() {
     // Convert pricePerKg to pricePerTon for the database
     const pricePerTon = (parseFloat(formData.pricePerKg) || 0) * 1000;
 
-    await fetch('/api/manager/purchase', {
+    const res = await fetch('/api/manager/purchase', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -63,7 +64,8 @@ export default function PurchasePage() {
          date: formData.date
       })
     });
-    alert('Purchase logged successfully!');
+    if (!res.ok) { toast.error('Operation failed'); return; }
+    toast.success('Purchase logged successfully!');
     setFormData(prev => ({ ...prev, qty: '', pricePerKg: '' }));
     fetchRecentPurchases();
   };
@@ -83,8 +85,9 @@ export default function PurchasePage() {
       <form onSubmit={handleSubmit} className="card flex flex-col gap-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm text-gray-400 mb-1">Supplier</label>
+            <label htmlFor="supplierId" className="block text-sm text-gray-400 mb-1">Supplier</label>
             <select
+              id="supplierId"
               className="input-field"
               value={formData.supplierId}
               onChange={e => setFormData({...formData, supplierId: e.target.value})}
@@ -94,8 +97,9 @@ export default function PurchasePage() {
             </select>
           </div>
           <div>
-            <label className="block text-sm text-gray-400 mb-1">Date of Record</label>
+            <label htmlFor="date" className="block text-sm text-gray-400 mb-1">Date of Record</label>
             <input
+              id="date"
               type="datetime-local"
               className="input-field"
               min="2000-01-01"
@@ -108,8 +112,9 @@ export default function PurchasePage() {
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm text-gray-400 mb-1">Quantity (Tons)</label>
+            <label htmlFor="qty" className="block text-sm text-gray-400 mb-1">Quantity (Tons)</label>
             <input
+              id="qty"
               type="number"
               step="0.01"
               className="input-field"
@@ -119,8 +124,9 @@ export default function PurchasePage() {
             />
           </div>
           <div>
-            <label className="block text-sm text-gray-400 mb-1">Price per KG (₹)</label>
+            <label htmlFor="pricePerKg" className="block text-sm text-gray-400 mb-1">Price per KG (₹)</label>
             <input
+              id="pricePerKg"
               type="number"
               step="0.01"
               className="input-field"
@@ -200,7 +206,7 @@ export default function PurchasePage() {
                 </tr>
               ))}
               {recentPurchases.length === 0 && (
-                <tr><td colSpan={4} className="p-4 text-center text-gray-500">No recent purchases found.</td></tr>
+                <tr><td colSpan={4} className="p-4 text-center text-gray-400">No recent purchases found.</td></tr>
               )}
             </tbody>
           </table>
@@ -219,24 +225,24 @@ export default function PurchasePage() {
 
               <div className="space-y-3 mb-6 text-sm text-gray-300">
                  <div className="flex justify-between">
-                    <span className="text-gray-500">Supplier Name:</span>
+                    <span className="text-gray-400">Supplier Name:</span>
                     <span className="font-bold text-white">
                        {suppliers.find(s => s.id === formData.supplierId)?.name || ''}
                     </span>
                  </div>
                  <div className="flex justify-between">
-                    <span className="text-gray-500">Quantity:</span>
+                    <span className="text-gray-400">Quantity:</span>
                     <span className="font-bold text-white">{formData.qty} Tons</span>
                  </div>
                  <div className="flex justify-between">
-                    <span className="text-gray-500">Price per KG:</span>
+                    <span className="text-gray-400">Price per KG:</span>
                     <span className="font-bold text-white">₹ {formData.pricePerKg}/kg</span>
                  </div>
                  <div className="flex justify-between border-t border-[#333]/30 pt-2 bg-red-950/10 border-red-900/30 p-2 rounded">
                     <span className="text-gray-400">Total Invoice Value:</span>
                     <span className="font-bold text-white">₹ {totalValue.toLocaleString('en-IN')}</span>
                  </div>
-                 <div className="flex justify-between border-t border-[#333]/30 pt-2 text-xs text-gray-500">
+                 <div className="flex justify-between border-t border-[#333]/30 pt-2 text-xs text-gray-400">
                     <span>Log Date:</span>
                     <span>{formData.date ? formatDateIST(formData.date) : 'Current Time'}</span>
                  </div>

@@ -54,8 +54,9 @@ export default function LoginPage() {
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
-            <label className="block text-sm text-gray-400 mb-1">Username</label>
+            <label htmlFor="username" className="block text-sm text-gray-400 mb-1">Username</label>
             <input
+              id="username"
               type="text"
               className="input-field w-full"
               value={username}
@@ -64,8 +65,9 @@ export default function LoginPage() {
             />
           </div>
           <div>
-            <label className="block text-sm text-gray-400 mb-1">Password</label>
+            <label htmlFor="password" className="block text-sm text-gray-400 mb-1">Password</label>
             <input
+              id="password"
               type="password"
               className="input-field w-full"
               value={password}

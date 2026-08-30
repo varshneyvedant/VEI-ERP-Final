@@ -136,7 +136,7 @@ export default function JournalsPage() {
           <option value="PRODUCTION">Production Runs</option>
         </select>
         
-        <div className="ml-auto text-xs text-gray-500 flex items-center gap-1">
+        <div className="ml-auto text-xs text-gray-400 flex items-center gap-1">
           <ShieldCheck size={14} className="text-red-500" /> Continuous Auto-balancing Audit active
         </div>
       </div>
@@ -144,7 +144,7 @@ export default function JournalsPage() {
       {loading ? (
         <div className="text-gray-400 py-12 text-center text-sm">Querying General Ledger Journal Entry logs...</div>
       ) : filteredJournals.length === 0 ? (
-        <div className="card text-gray-500 py-12 text-center italic text-sm border border-dashed border-[#333]">
+        <div className="card text-gray-400 py-12 text-center italic text-sm border border-dashed border-[#333]">
           No General Ledger journal entries matched this filter.
         </div>
       ) : (
@@ -158,7 +158,7 @@ export default function JournalsPage() {
               <div key={journal.id} className="card bg-[#141414] border border-[#333] hover:border-red-500/20 transition-all p-5">
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4 pb-3 border-b border-[#333]/50">
                   <div>
-                    <span className="text-[10px] text-gray-500 font-mono tracking-wider uppercase block">Entry ID: {journal.id}</span>
+                    <span className="text-[10px] text-gray-400 font-mono tracking-wider uppercase block">Entry ID: {journal.id}</span>
                     <h4 className="text-base font-bold text-white mt-0.5">{journal.description}</h4>
                   </div>
                   <div className="flex flex-col items-end gap-1">
@@ -174,7 +174,7 @@ export default function JournalsPage() {
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-xs">
                     <thead>
-                      <tr className="text-gray-500 uppercase font-black tracking-wider border-b border-[#333]/30">
+                      <tr className="text-gray-400 uppercase font-black tracking-wider border-b border-[#333]/30">
                         <th className="py-2 pl-2">GL Account Name</th>
                         <th className="py-2">Category</th>
                         <th className="py-2 text-right">Debit (Dr.)</th>
@@ -187,7 +187,7 @@ export default function JournalsPage() {
                           <td className={`py-2 pl-2 font-bold ${Number(line.debit) > 0 ? 'text-white pl-2' : 'text-gray-400 pl-6'}`}>
                             {line.accountName}
                           </td>
-                          <td className="py-2 text-gray-500">{line.accountType}</td>
+                          <td className="py-2 text-gray-400">{line.accountType}</td>
                           <td className="py-2 text-right font-black text-sm text-green-400">
                             {Number(line.debit) > 0 ? formatCurrency(Number(line.debit)) : '-'}
                           </td>

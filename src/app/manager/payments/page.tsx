@@ -1,4 +1,5 @@
 'use client';
+import { toast } from 'sonner';
 
 import { useState, useEffect } from 'react';
 import { Banknote, Users, Truck, Check, Download, Trash2, RotateCcw } from 'lucide-react';
@@ -8,7 +9,7 @@ import { exportToPDF } from '@/lib/export/pdf';
 
 export default function PaymentsPage() {
   const [type, setType] = useState<'customer' | 'supplier'>('customer');
-  const [stakeholders, setStakeholders] = useState<{id: string, name: string}[]>([]);
+  const [stakeholders, setStakeholders] = useState<any[]>([]);
   const [formData, setFormData] = useState({
     stakeholderId: '',
     amount: ''
@@ -20,6 +21,8 @@ export default function PaymentsPage() {
   const [recentPayments, setRecentPayments] = useState<any[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const selectedStakeholder = stakeholders.find(s => s.id === formData.stakeholderId);
 
   const fetchStakeholders = () => {
     fetch(`/api/${type}s`)
@@ -78,16 +81,16 @@ export default function PaymentsPage() {
         })
       });
       if (res.ok) {
-        alert('Payment recorded successfully! The system has auto-applied it to the oldest pending invoices.');
+        toast.success('Payment recorded successfully!');
         setFormData({ ...formData, amount: '' });
         fetchRecentPayments();
       } else {
         const errorData = await res.json();
-        alert(`Failed to record payment: ${errorData.error || 'Server error'}`);
+        toast.error(`Failed to record payment: ${errorData.error || 'Server error'}`);
       }
     } catch (err) {
       console.error(err);
-      alert('Network error occurred while recording payment.');
+      toast.error('Network error occurred while recording payment.');
     }
   };
 
@@ -173,9 +176,50 @@ export default function PaymentsPage() {
               onChange={e => setFormData({...formData, stakeholderId: e.target.value})}
               required
             >
-              {stakeholders.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+              {stakeholders.map(s => (
+                <option key={s.id} value={s.id}>
+                  {s.name} {s.currentBalance !== undefined ? `(Bal: ₹${Number(s.currentBalance).toLocaleString('en-IN')})` : ''}
+                </option>
+              ))}
             </select>
           </div>
+
+          {/* Live Party Balance & Credit Info Card */}
+          {selectedStakeholder && (
+            <div className="p-3.5 bg-[#222] rounded-lg border border-[#333] space-y-2">
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-gray-400 font-semibold uppercase">
+                  {type === 'customer' ? 'Current Customer Account Balance' : 'Current Supplier Account Balance'}
+                </span>
+                {type === 'customer' && selectedStakeholder.creditDays && (
+                  <span className="text-[11px] text-gray-500">
+                    Limit: ₹{Number(selectedStakeholder.creditLimit || 2500000).toLocaleString('en-IN')} ({selectedStakeholder.creditDays}d)
+                  </span>
+                )}
+              </div>
+
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-gray-300 font-medium">
+                  {type === 'customer' ? 'Current Outstanding (They Owe Us):' : 'Current Pending (We Owe Them):'}
+                </span>
+                <span className={`text-base sm:text-lg font-black tabular-nums ${Number(selectedStakeholder.currentBalance || 0) > 0 ? (type === 'customer' ? 'text-red-400' : 'text-orange-400') : 'text-green-400'}`}>
+                  {formatCurrency(Number(selectedStakeholder.currentBalance || 0))}
+                </span>
+              </div>
+
+              {formData.amount && (
+                <div className="pt-2 border-t border-[#333] flex justify-between items-center text-xs">
+                  <span className="text-gray-400">Projected Balance After Payment:</span>
+                  <span className="font-bold text-white tabular-nums">
+                    {formatCurrency(Number(selectedStakeholder.currentBalance || 0) - (parseFloat(formData.amount || '0') * multiplier))}
+                    {Number(selectedStakeholder.currentBalance || 0) - (parseFloat(formData.amount || '0') * multiplier) < 0 && (
+                      <span className="ml-1 text-[10px] text-green-400 font-normal">(Advance / Excess)</span>
+                    )}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
 
           <div>
             <label className="block text-sm text-gray-400 mb-1">Lump-sum Amount Received/Paid</label>
@@ -249,7 +293,7 @@ export default function PaymentsPage() {
          {loadingHistory ? (
            <div className="text-gray-400 py-8 text-center text-sm">Loading recent payments ledger...</div>
          ) : recentPayments.length === 0 ? (
-           <div className="text-gray-500 py-8 text-center text-sm italic">No recent stakeholder payments found.</div>
+           <div className="text-gray-400 py-8 text-center text-sm italic">No recent stakeholder payments found.</div>
          ) : (
            <div className="overflow-x-auto">
              <table className="w-full text-left text-sm">
@@ -273,7 +317,7 @@ export default function PaymentsPage() {
                        </span>
                      </td>
                      <td className="p-3 font-semibold text-white">
-                       {payment.customer?.name || payment.supplier?.name || <span className="text-gray-500 italic">None</span>}
+                       {payment.customer?.name || payment.supplier?.name || <span className="text-gray-400 italic">None</span>}
                      </td>
                      <td className={`p-3 font-bold text-base ${payment.type === 'INCOMING' ? 'text-green-400' : 'text-red-400'}`}>
                        {payment.type === 'INCOMING' ? '+' : '-'}{formatCurrency(Number(payment.amount))}
@@ -303,45 +347,59 @@ export default function PaymentsPage() {
               <h3 className="text-2xl font-bold text-white mb-2 flex items-center gap-2">
                  <Check className="text-green-500" /> Confirm Stakeholder Payment
               </h3>
-              <p className="text-sm text-gray-400 mb-4 border-b border-[#333]/50 pb-2">
-                 Please review the transaction details below before recording.
-              </p>
+               <p className="text-sm text-gray-400 mb-4 border-b border-[#333]/50 pb-2">
+                  Please review the transaction and balance impacts before recording.
+               </p>
 
-              <div className="space-y-3 mb-6 text-sm text-gray-300">
-                 <div className="flex justify-between">
-                    <span className="text-gray-500">Transaction Type:</span>
-                    <span className="font-bold text-white uppercase">{type === 'customer' ? 'Customer Paid Us' : 'We Paid Supplier'}</span>
-                 </div>
-                 <div className="flex justify-between">
-                    <span className="text-gray-500">Stakeholder Name:</span>
-                    <span className="font-bold text-white">
-                       {stakeholders.find(s => s.id === formData.stakeholderId)?.name || ''}
-                    </span>
-                 </div>
-                 <div className="flex justify-between">
-                    <span className="text-gray-500">Payment Amount:</span>
-                    <span className="font-bold text-green-400">{formatCurrency(parseFloat(formData.amount) * multiplier)}</span>
-                 </div>
-                 <div className="flex justify-between border-t border-[#333]/30 pt-2 text-xs text-gray-500">
-                    <span>Smart Application:</span>
-                    <span className="italic text-gray-400">Will auto-apply to oldest pending invoices first</span>
-                 </div>
-              </div>
+               <div className="space-y-3 mb-6 text-sm text-gray-300">
+                  <div className="flex justify-between">
+                     <span className="text-gray-400">Transaction Type:</span>
+                     <span className="font-bold text-white uppercase">{type === 'customer' ? 'Customer Paid Us' : 'We Paid Supplier'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                     <span className="text-gray-400">Stakeholder:</span>
+                     <span className="font-bold text-white">
+                        {selectedStakeholder?.name || ''}
+                     </span>
+                  </div>
+                  <div className="flex justify-between">
+                     <span className="text-gray-400">Current Balance Before:</span>
+                     <span className="font-bold text-gray-300 tabular-nums">
+                        {formatCurrency(Number(selectedStakeholder?.currentBalance || 0))}
+                     </span>
+                  </div>
+                  <div className="flex justify-between border-t border-[#333]/40 pt-2">
+                     <span className="text-gray-400">Payment Amount:</span>
+                     <span className="font-black text-green-400 text-base tabular-nums">
+                        {formatCurrency(parseFloat(formData.amount || '0') * multiplier)}
+                     </span>
+                  </div>
+                  <div className="flex justify-between bg-[#222] p-2.5 rounded border border-[#333] text-xs">
+                     <span className="text-gray-300 font-semibold">Net Balance After Payment:</span>
+                     <span className="font-bold text-white tabular-nums">
+                        {formatCurrency(Number(selectedStakeholder?.currentBalance || 0) - (parseFloat(formData.amount || '0') * multiplier))}
+                     </span>
+                  </div>
+                  <div className="flex justify-between text-[11px] text-gray-500 pt-1">
+                     <span>Application:</span>
+                     <span className="italic">Auto-applies to oldest unpaid transactions first</span>
+                  </div>
+               </div>
 
-              <div className="flex gap-4">
-                 <button 
-                    onClick={handleConfirmAndRecord}
-                    className="btn-primary flex-1 bg-green-600 hover:bg-green-700 font-bold"
-                 >
-                    Confirm & Record
-                 </button>
-                 <button 
-                    onClick={() => setShowConfirmModal(false)}
-                    className="px-4 py-2 bg-[#2a2a2a] text-gray-300 hover:text-white rounded font-bold border border-[#333]"
-                 >
-                    Edit / Cancel
-                 </button>
-              </div>
+               <div className="flex gap-3">
+                  <button 
+                     onClick={handleConfirmAndRecord}
+                     className="btn-primary flex-1 bg-green-600 hover:bg-green-700 font-bold"
+                  >
+                     Confirm & Record
+                  </button>
+                  <button 
+                     onClick={() => setShowConfirmModal(false)}
+                     className="px-4 py-2 bg-[#2a2a2a] text-gray-300 hover:text-white rounded font-bold border border-[#333] text-sm"
+                  >
+                     Edit / Cancel
+                  </button>
+               </div>
            </div>
         </div>
       )}

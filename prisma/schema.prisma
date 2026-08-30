@@ -99,6 +99,11 @@ model SalaryHistory {
   amount     Decimal
   reason     String?
   employee   Employee @relation(fields: [employeeId], references: [id])
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([employeeId])
+  @@index([date])
 }
 
 model Attendance {
@@ -111,6 +116,7 @@ model Attendance {
 
   @@index([date])
   @@index([employeeId])
+  @@unique([employeeId, date])
 }
 
 model Advance {
@@ -122,6 +128,8 @@ model Advance {
   reason       String?
   employee     Employee           @relation(fields: [employeeId], references: [id])
   repayments   AdvanceRepayment[]
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
 
   @@index([employeeId])
 }
@@ -132,6 +140,11 @@ model AdvanceRepayment {
   date      DateTime @default(now())
   amount    Decimal
   advance   Advance  @relation(fields: [advanceId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([advanceId])
+  @@index([date])
 }
 
 model Supplier {
@@ -140,6 +153,8 @@ model Supplier {
   contact       String?
   address       String?
   gst           String?
+  pan           String?
+  stateCode     String?
   bankDetails   String?
   creditBalance Decimal          @default(0)
   createdAt     DateTime         @default(now())
@@ -155,13 +170,18 @@ model Customer {
   contact       String?
   address       String?
   gst           String?
+  stateCode     String?
+  pan           String?
   transport     String?
   creditBalance Decimal          @default(0)
+  creditLimit   Decimal          @default(2500000) // Default 25 Lakhs
+  creditDays    Int              @default(18)      // Default 18 Days
   createdAt     DateTime         @default(now())
   updatedAt     DateTime         @updatedAt
   sales         Sale[]
   ledgers       CustomerLedger[]
   payments      PaymentRecord[]
+  saudaContracts SaudaContract[]
 }
 
 model Purchase {
@@ -178,6 +198,8 @@ model Purchase {
   billPayments   BillPayment[]
   debitNotes     DebitNote[]
   isDeleted      Boolean         @default(false)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
 
   @@index([date])
   @@index([supplierId])
@@ -191,8 +213,11 @@ model InventoryBatch {
   remainingQty Decimal
   pricePerTon  Decimal
   purchase     Purchase @relation(fields: [purchaseId], references: [id])
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   @@index([date])
+  @@index([remainingQty])
 }
 
 model Production {
@@ -206,6 +231,8 @@ model Production {
   scrapGenerated  Decimal  @default(0) // Automatically tracked difference (rawUsed - wireProduced)
   isDeleted       Boolean  @default(false)
   finishedGoodsBatch FinishedGoodsBatch?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   @@index([date])
 }
@@ -222,19 +249,50 @@ model FinishedGoodsBatch {
   costPerTon      Decimal       // Exact FIFO cost inherited from raw copper consumed
   
   production      Production    @relation(fields: [productionId], references: [id])
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
 
   @@index([date])
+  @@index([productCategory, brand, wireType])
+  @@index([remainingQty])
 }
 
 model ScrapInventory {
   id        String    @id @default(uuid())
   date      DateTime  @default(now())
-  type      String
-  qty       Decimal // Tons
+  type      String    // "GENERATED", "SOLD", "PROCESS_LOSS_ADJUSTMENT"
+  qty       Decimal   // Tons
   revenue   Decimal   @default(0) // Money earned if sold
+  notes     String?
   isDeleted Boolean   @default(false)
   
   payments  PaymentRecord[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([date])
+  @@index([type])
+}
+
+model SaudaContract {
+  id              String     @id @default(uuid())
+  contractNo      String     @unique
+  customerId      String
+  bookingDate     DateTime   @default(now())
+  expiryDate      DateTime?
+  ratePerKg       Decimal    // Booked Rate in ₹/Kg
+  totalQtyTons    Decimal    // Booked Quantity in Tons
+  remainingQty    Decimal    // Remaining Quantity to dispatch in Tons
+  status          String     @default("ACTIVE") // "ACTIVE", "COMPLETED", "CANCELLED"
+  notes           String?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  customer        Customer   @relation(fields: [customerId], references: [id])
+  saleItems       SaleItem[]
+
+  @@index([customerId])
+  @@index([status])
 }
 
 model Sale {
@@ -249,22 +307,32 @@ model Sale {
   invoicePayments InvoicePayment[]
   creditNotes     CreditNote[]
   isDeleted       Boolean          @default(false)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
 
   @@index([date])
   @@index([customerId])
 }
 
 model SaleItem {
-  id                  String  @id @default(uuid())
+  id                  String         @id @default(uuid())
   saleId              String
-  productCategory     String // "CC Wires", "Submersible Winding Wire", "Raw Copper Bundle"
-  brand               String? // Optional for raw copper
-  wireType            String? // Optional for raw copper
-  qty                 Decimal // Tons
+  saudaContractId     String?
+  productCategory     String         // "CC Wires", "Submersible Winding Wire", "Raw Copper Bundle"
+  brand               String?        // Optional for raw copper
+  wireType            String?        // Optional for raw copper
+  qty                 Decimal        // Tons
   pricePerTon         Decimal
   totalValue          Decimal
-  rawCopperCostAtSale Decimal @default(0) // The exact FIFO cost of raw copper per ton on the day this was sold. Essential for exact profit calculations.
-  sale                Sale    @relation(fields: [saleId], references: [id])
+  rawCopperCostAtSale Decimal        @default(0) // The exact FIFO cost of raw copper per ton on the day this was sold. Essential for exact profit calculations.
+  hsnCode             String?
+  sale                Sale           @relation(fields: [saleId], references: [id])
+  saudaContract       SaudaContract? @relation(fields: [saudaContractId], references: [id])
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+
+  @@index([saleId])
+  @@index([saudaContractId])
 }
 
 model Expense {
@@ -278,12 +346,20 @@ model Expense {
   isDeleted    Boolean       @default(false)
   
   payments     PaymentRecord[]
+
+  @@index([date])
+  @@index([category])
 }
 
 model MarketPrice {
-  id    String   @id @default(uuid())
-  date  DateTime
-  price Decimal // Price per Ton of raw copper
+  id        String   @id @default(uuid())
+  date      DateTime
+  price     Decimal // Price per Ton of raw copper
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([date])
+  @@unique([date])
 }
 
 model SupplierLedger {
@@ -320,6 +396,9 @@ model AuditLog {
   module      String // "Sales", "Purchases", "Production", etc.
   description String // Human readable summary
   details     String? // JSON string of old/new values
+
+  @@index([date])
+  @@index([module])
 }
 
 
@@ -357,6 +436,8 @@ model CreditNote {
   amountCredited Decimal  // Reduction in Customer AR
   reason         String?
   sale           Sale     @relation(fields: [saleId], references: [id])
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   @@index([saleId])
 }
@@ -369,6 +450,8 @@ model DebitNote {
   amountDebited Decimal  // Reduction in Supplier AP
   reason        String?
   purchase      Purchase @relation(fields: [purchaseId], references: [id])
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   @@index([purchaseId])
 }

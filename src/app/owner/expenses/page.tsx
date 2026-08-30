@@ -173,7 +173,7 @@ function ExpensesDashboardContent() {
                     </tr>
                   ))}
                   {data.rawList.length === 0 && (
-                    <tr><td colSpan={5} className="p-4 text-center text-gray-500">No expenses logged in this timeframe.</td></tr>
+                    <tr><td colSpan={5} className="p-4 text-center text-gray-400">No expenses logged in this timeframe.</td></tr>
                   )}
                 </tbody>
               </table>

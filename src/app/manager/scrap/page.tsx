@@ -1,4 +1,5 @@
 'use client';
+import { toast } from 'sonner';
 
 import { formatDateIST } from '@/lib/format';
 import { useState, useEffect, Suspense } from 'react';
@@ -20,8 +21,37 @@ function ScrapDashboardContent() {
   const [timeframe, setTimeframe] = useState<Timeframe>(initialTimeframe);
 
   const [showSellForm, setShowSellForm] = useState(false);
-  const [sellForm, setSellForm] = useState({ qty: '', revenue: '' });
+  const [sellForm, setSellForm] = useState({ qty: '', revenue: '', chemicalLossQty: '' });
   const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [showReconcileModal, setShowReconcileModal] = useState(false);
+  const [reconcileForm, setReconcileForm] = useState({ actualWeight: '', lossQty: '', notes: '' });
+
+  const handleProcessLossSubmit = async () => {
+    const loss = parseFloat(reconcileForm.lossQty) || 0;
+    if (loss <= 0) {
+      toast.error('Please enter a valid process loss quantity');
+      return;
+    }
+    const res = await fetch('/api/manager/scrap', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type: 'PROCESS_LOSS_ADJUSTMENT',
+        qty: loss,
+        revenue: 0,
+        notes: reconcileForm.notes || 'Chemical / Process Burning Loss adjustment'
+      })
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      toast.error(err.error || 'Failed to record process loss');
+      return;
+    }
+    toast.success('Physical scrap balance reconciled! Chemical gap logged.');
+    setShowReconcileModal(false);
+    setReconcileForm({ actualWeight: '', lossQty: '', notes: '' });
+    fetchData();
+  };
 
   const handleTimeframeChange = (newTf: Timeframe) => {
      setTimeframe(newTf);
@@ -81,11 +111,11 @@ function ScrapDashboardContent() {
      });
 
      if (!res.ok) {
-        alert('Failed to record scrap sale');
+        toast.error('Failed to record scrap sale');
         return;
      }
 
-     alert('Scrap sale recorded successfully! Capital has been added to your bank ledger.');
+     toast.success('Scrap sale recorded successfully! Capital has been added to your bank ledger.');
      setShowSellForm(false);
      setSellForm(prev => ({ ...prev, qty: '', revenue: '' }));
      fetchData();
@@ -105,31 +135,110 @@ function ScrapDashboardContent() {
         <TimeframeSelector value={timeframe} onChange={handleTimeframeChange} />
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
          <div className="card border-l-4 border-l-yellow-600">
            <div className="text-gray-400 text-xs mb-1 flex items-center gap-1">Current Scrap Stock</div>
-           <div className="text-3xl font-bold text-white">{Number(data?.currentHolding).toFixed(2)}<span className="text-xs text-gray-500 font-normal ml-1">Tons</span></div>
-           <p className="text-xs text-gray-500 mt-1">Static Balance (Available to Sell)</p>
+           <div className="text-2xl sm:text-3xl font-bold text-white tabular-nums">{Number(data?.currentHolding).toFixed(2)}<span className="text-xs text-gray-400 font-normal ml-1">Tons</span></div>
+           <p className="text-[11px] text-gray-400 mt-1">Available Physical Stock</p>
          </div>
          <div className="card border-l-4 border-l-red-500 bg-gradient-to-r from-[#1a1a1a] to-[#222]">
-           <div className="text-gray-400 text-xs mb-1 flex items-center gap-1"><PackageMinus size={14}/> Generated in Timeframe</div>
-           <div className="text-2xl font-bold text-red-400">{Number(data?.generatedInTimeframe).toFixed(2)} Tons</div>
+           <div className="text-gray-400 text-xs mb-1 flex items-center gap-1"><PackageMinus size={14}/> Generated in Period</div>
+           <div className="text-xl sm:text-2xl font-bold text-red-400 tabular-nums">{Number(data?.generatedInTimeframe).toFixed(2)} Tons</div>
          </div>
          <div className="card border-l-4 border-l-blue-500 bg-gradient-to-r from-[#1a1a1a] to-[#222]">
-           <div className="text-gray-400 text-xs mb-1 flex items-center gap-1"><TrendingUp size={14}/> Sold in Timeframe</div>
-           <div className="text-2xl font-bold text-blue-400">{Number(data?.soldInTimeframe).toFixed(2)} Tons</div>
+           <div className="text-gray-400 text-xs mb-1 flex items-center gap-1"><TrendingUp size={14}/> Sold in Period</div>
+           <div className="text-xl sm:text-2xl font-bold text-blue-400 tabular-nums">{Number(data?.soldInTimeframe).toFixed(2)} Tons</div>
          </div>
-         <div className="card border-l-4 border-l-green-500 bg-gradient-to-r from-[#1a1a1a] to-[#222]">
+         <div className="card border-l-4 border-l-purple-500 bg-gradient-to-r from-[#1a1a1a] to-[#222]">
+           <div className="text-gray-400 text-xs mb-1 flex items-center gap-1">Process / Burning Loss</div>
+           <div className="text-xl sm:text-2xl font-bold text-purple-400 tabular-nums">{Number(data?.processLossInTimeframe || 0).toFixed(2)} Tons</div>
+         </div>
+         <div className="card border-l-4 border-l-green-500 bg-gradient-to-r from-[#1a1a1a] to-[#222] sm:col-span-2 lg:col-span-1">
            <div className="text-gray-400 text-xs mb-1 flex items-center gap-1"><HandCoins size={14}/> Capital Recovered</div>
-           <div className="text-2xl font-bold text-green-400">{formatCurrency(data?.revenueInTimeframe)}</div>
+           <div className="text-xl sm:text-2xl font-bold text-green-400 tabular-nums">{formatCurrency(data?.revenueInTimeframe)}</div>
          </div>
       </div>
 
-      <div className="flex gap-4 mb-6">
-         <button onClick={() => setShowSellForm(!showSellForm)} className="btn-primary bg-yellow-600 hover:bg-yellow-700 flex items-center gap-2">
+      <div className="flex flex-wrap gap-3 mb-6">
+         <button onClick={() => { setShowSellForm(!showSellForm); setShowReconcileModal(false); }} className="btn-primary bg-yellow-600 hover:bg-yellow-700 flex items-center gap-2">
             <HandCoins size={18} /> Recover Capital: Sell Scrap
          </button>
+         <button onClick={() => { setShowReconcileModal(!showReconcileModal); setShowSellForm(false); }} className="px-4 py-2 bg-purple-950/40 hover:bg-purple-900/60 text-purple-300 border border-purple-500/30 rounded font-bold text-sm flex items-center gap-2 transition-colors">
+            🧪 Reconcile Physical Scrap (Burning Loss Gap)
+         </button>
       </div>
+
+      {showReconcileModal && (
+         <div className="card bg-[#1a1a1a] border border-purple-500/50 mb-8 p-6 space-y-4">
+            <div className="border-b border-[#333] pb-3">
+               <h3 className="text-lg font-bold text-purple-400">Chemical & Process Burning Loss Reconciliation</h3>
+               <p className="text-xs text-gray-400 mt-1">
+                  When physical scrap weighed in yard is less than system expected balance due to acid washing, dust, or furnace burning loss, write off the chemical gap here.
+               </p>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
+               <div className="p-3 bg-[#222] rounded border border-[#333]">
+                  <span className="text-xs text-gray-400 block">System Expected Balance</span>
+                  <span className="text-lg font-bold text-white tabular-nums">{Number(data?.currentHolding).toFixed(2)} Tons</span>
+               </div>
+               <div>
+                  <label className="block text-xs text-gray-400 mb-1">Physical Weighed Stock in Yard (Tons)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    placeholder="e.g. 4.60"
+                    className="input-field text-sm"
+                    value={reconcileForm.actualWeight}
+                    onChange={e => {
+                      const actual = parseFloat(e.target.value) || 0;
+                      const holding = Number(data?.currentHolding) || 0;
+                      const diff = Math.max(0, holding - actual);
+                      setReconcileForm({
+                        actualWeight: e.target.value,
+                        lossQty: diff.toFixed(2),
+                        notes: `Chemical/process burning loss adjustment: ${holding.toFixed(2)}T system -> ${actual.toFixed(2)}T physical`
+                      });
+                    }}
+                  />
+               </div>
+               <div>
+                  <label className="block text-xs text-gray-400 mb-1">Auto-calculated Process Loss Gap (Tons)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    className="input-field text-sm bg-[#1e1e1e] border-purple-500/50 text-purple-300 font-bold"
+                    value={reconcileForm.lossQty}
+                    onChange={e => setReconcileForm({ ...reconcileForm, lossQty: e.target.value })}
+                  />
+               </div>
+            </div>
+            <div>
+               <label className="block text-xs text-gray-400 mb-1">Audit Notes / Explanation</label>
+               <input
+                 type="text"
+                 className="input-field text-sm"
+                 value={reconcileForm.notes}
+                 onChange={e => setReconcileForm({ ...reconcileForm, notes: e.target.value })}
+               />
+            </div>
+            <div className="flex gap-3 pt-2">
+               <button
+                 type="button"
+                 onClick={handleProcessLossSubmit}
+                 className="btn-primary bg-purple-600 hover:bg-purple-700 font-bold text-sm"
+               >
+                 Confirm & Update Scrap Balance
+               </button>
+               <button
+                 type="button"
+                 onClick={() => setShowReconcileModal(false)}
+                 className="px-4 py-2 bg-[#2a2a2a] text-gray-300 rounded hover:text-white text-sm"
+               >
+                 Cancel
+               </button>
+            </div>
+         </div>
+      )}
 
       {showSellForm && (
          <form onSubmit={handleSubmit} className="card bg-[#1a1a1a] border border-yellow-600/50 mb-8 p-6">
@@ -143,6 +252,10 @@ function ScrapDashboardContent() {
                   <label className="block text-sm text-gray-400 mb-1">Total Revenue Received (₹)</label>
                   <input type="number" step="0.01" className="input-field" required value={sellForm.revenue} onChange={e => setSellForm({...sellForm, revenue: e.target.value})} />
                </div>
+               <div>
+                  <label className="block text-sm text-gray-400 mb-1">Chemical Loss Gap to write-off (Optional Tons)</label>
+                  <input type="number" step="0.01" placeholder="0.00" className="input-field" value={sellForm.chemicalLossQty || ''} onChange={e => setSellForm({...sellForm, chemicalLossQty: e.target.value})} />
+               </div>
             </div>
             <div className="mt-4 flex gap-4">
                <button type="submit" className="btn-primary bg-yellow-600 hover:bg-yellow-700">Confirm Scrap Sale</button>
@@ -152,43 +265,45 @@ function ScrapDashboardContent() {
       )}
 
       <div className="card">
-         <div className="flex justify-between items-center mb-4 border-[#333]">
+         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4 border-[#333]">
             <h3 className="text-xl font-bold flex items-center gap-2">
               Scrap Inventory Ledger ({timeframe})
             </h3>
-            <div className="flex gap-2">
+            <div className="flex gap-2 w-full sm:w-auto">
               <button
                 onClick={() => {
                    const dataToExport = data.history.map((log: any) => ({
                       Date: formatDateIST(log.date),
-                      Type: log.type === 'GENERATED' ? 'GENERATED (PRODUCTION)' : 'SOLD (RECOVERY)',
+                      Type: log.type,
                       Quantity: Number(log.qty).toFixed(2),
-                      Revenue: log.type === 'SOLD' ? Number(log.revenue) : 0
+                      Revenue: log.type === 'SOLD' ? Number(log.revenue) : 0,
+                      Notes: log.notes || '-'
                    }));
                    exportToExcel(dataToExport, `Scrap_Ledger_${timeframe}`);
                 }}
-                className="bg-[#1f2937] hover:bg-gray-700 text-white font-bold py-1.5 px-3 rounded text-xs transition-colors flex items-center gap-1.5"
+                className="flex-1 sm:flex-initial bg-[#1f2937] hover:bg-gray-700 text-white font-bold py-1.5 px-3 rounded text-xs transition-colors flex items-center justify-center gap-1.5"
               >
                 <Download size={14}/> Export Excel
               </button>
               <button
                 onClick={() => {
-                   const headers = ['Date', 'Transaction Type', 'Quantity (Tons)', 'Revenue Earned'];
+                   const headers = ['Date', 'Transaction Type', 'Quantity (Tons)', 'Revenue Earned', 'Notes'];
                    const rows = data.history.map((log: any) => [
                       formatDateIST(log.date),
-                      log.type === 'GENERATED' ? '🏭 GENERATED (PRODUCTION)' : '💰 SOLD (RECOVERY)',
+                      log.type === 'GENERATED' ? '🏭 GENERATED' : log.type === 'SOLD' ? '💰 SOLD' : '🧪 PROCESS LOSS',
                       Number(log.qty).toFixed(2),
-                      log.type === 'SOLD' ? formatCurrency(log.revenue) : '-'
+                      log.type === 'SOLD' ? formatCurrency(log.revenue) : '-',
+                      log.notes || '-'
                    ]);
                    exportToPDF(headers, rows, `Scrap Inventory Ledger (${timeframe})`);
                 }}
-                className="bg-red-600 hover:bg-red-700 text-white font-bold py-1.5 px-3 rounded text-xs transition-colors flex items-center gap-1.5"
+                className="flex-1 sm:flex-initial bg-red-600 hover:bg-red-700 text-white font-bold py-1.5 px-3 rounded text-xs transition-colors flex items-center justify-center gap-1.5"
               >
                 <Download size={14}/> Export PDF
               </button>
             </div>
          </div>
-         <div className="overflow-x-auto">
+         <div className="overflow-x-auto rounded-lg border border-[#333]">
             <table className="w-full text-left">
                <thead className="bg-[#1e1e1e]">
                   <tr className="border-b border-[#333] text-gray-400 text-xs uppercase tracking-wider">
@@ -196,24 +311,30 @@ function ScrapDashboardContent() {
                      <th className="p-3">Transaction Type</th>
                      <th className="p-3 text-right">Quantity (Tons)</th>
                      <th className="p-3 text-right">Revenue Earned</th>
+                     <th className="p-3">Notes</th>
                   </tr>
                </thead>
                <tbody>
                   {data?.history.map((log: any) => (
-                     <tr key={log.id} className="border-b border-[#333] last:border-0 hover:bg-[#2a2a2a] text-sm">
-                        <td className="p-3 text-gray-300">{formatDateIST(log.date)}</td>
-                        <td className="p-3">
-                           {log.type === 'GENERATED' ? (
+                     <tr key={log.id} className="border-b border-[#333] last:border-0 hover:bg-[#2a2a2a] text-sm transition-colors">
+                        <td className="p-3 text-gray-300 whitespace-nowrap">{formatDateIST(log.date)}</td>
+                        <td className="p-3 whitespace-nowrap">
+                           {log.type === 'GENERATED' && (
                               <span className="text-red-400 bg-red-950/30 px-2 py-1 rounded text-xs font-bold border border-red-500/20">🏭 GENERATED (PRODUCTION)</span>
-                           ) : (
+                           )}
+                           {log.type === 'SOLD' && (
                               <span className="text-yellow-500 bg-yellow-950/30 px-2 py-1 rounded text-xs font-bold border border-yellow-600/30">💰 SOLD (RECOVERY)</span>
                            )}
+                           {log.type === 'PROCESS_LOSS_ADJUSTMENT' && (
+                              <span className="text-purple-400 bg-purple-950/30 px-2 py-1 rounded text-xs font-bold border border-purple-500/20">🧪 CHEMICAL/PROCESS LOSS</span>
+                           )}
                         </td>
-                        <td className="p-3 font-bold text-white text-right">{Number(log.qty).toFixed(2)}</td>
-                        <td className="p-3 font-bold text-green-400 text-right">{log.type === 'SOLD' ? formatCurrency(log.revenue) : '-'}</td>
+                        <td className="p-3 font-bold text-white text-right tabular-nums whitespace-nowrap">{Number(log.qty).toFixed(2)}</td>
+                        <td className="p-3 font-bold text-green-400 text-right tabular-nums whitespace-nowrap">{log.type === 'SOLD' ? formatCurrency(log.revenue) : '-'}</td>
+                        <td className="p-3 text-xs text-gray-400 max-w-xs truncate">{log.notes || '-'}</td>
                      </tr>
                   ))}
-                  {data?.history.length === 0 && <tr><td colSpan={4} className="p-4 text-center text-gray-500">No scrap generated or sold in this timeframe.</td></tr>}
+                  {data?.history.length === 0 && <tr><td colSpan={5} className="p-4 text-center text-gray-400">No scrap records in this timeframe.</td></tr>}
                </tbody>
             </table>
          </div>
@@ -231,14 +352,14 @@ function ScrapDashboardContent() {
 
               <div className="space-y-3 mb-6 text-sm text-gray-300">
                  <div className="flex justify-between">
-                    <span className="text-gray-500">Quantity Sold:</span>
+                    <span className="text-gray-400">Quantity Sold:</span>
                     <span className="font-bold text-white">{parseFloat(sellForm.qty).toFixed(2)} Tons</span>
                  </div>
                  <div className="flex justify-between">
-                    <span className="text-gray-500">Revenue Received:</span>
+                    <span className="text-gray-400">Revenue Received:</span>
                     <span className="font-bold text-green-400">{formatCurrency(parseFloat(sellForm.revenue))}</span>
                  </div>
-                 <div className="flex justify-between border-t border-[#333]/30 pt-2 text-xs text-gray-500">
+                 <div className="flex justify-between border-t border-[#333]/30 pt-2 text-xs text-gray-400">
                     <span>Ledger Impact:</span>
                     <span className="italic text-gray-400">Capital added directly to bank ledger</span>
                  </div>

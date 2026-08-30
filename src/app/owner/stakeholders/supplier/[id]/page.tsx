@@ -79,12 +79,12 @@ function SupplierDetailContent() {
             <div className="card border-l-4 border-l-purple-500">
               <div className="text-gray-400 text-sm mb-1">Raw Material Share</div>
               <div className="text-3xl font-bold text-white">{Number(data.metrics.stockPercent).toFixed(1)}%</div>
-              <div className="text-xs text-gray-500 mt-1">of total copper bought in timeframe</div>
+              <div className="text-xs text-gray-400 mt-1">of total copper bought in timeframe</div>
             </div>
             <div className="card">
               <div className="text-gray-400 text-sm mb-1">Total Purchase Value</div>
               <div className="text-3xl font-bold text-white">{formatCurrency(data.metrics.totalPurchaseValue)}</div>
-              <div className="text-xs text-gray-500 mt-1">{Number(data.metrics.totalTons).toFixed(2)} Tons supplied</div>
+              <div className="text-xs text-gray-400 mt-1">{Number(data.metrics.totalTons).toFixed(2)} Tons supplied</div>
             </div>
             <div className="card">
               <div className="text-gray-400 text-sm mb-1">Current Pending Amount</div>
@@ -128,14 +128,14 @@ function SupplierDetailContent() {
                         ) : (
                            <div className="flex flex-col items-end">
                               <span className="text-red-400 font-bold mb-1">Owe: {formatCurrency(purchase.pendingAmount)}</span>
-                              <span className="text-gray-500 text-xs">Paid: {formatCurrency(purchase.amountPaid)}</span>
+                              <span className="text-gray-400 text-xs">Paid: {formatCurrency(purchase.amountPaid)}</span>
                            </div>
                         )}
                       </td>
                     </tr>
                   ))}
                   {data.purchaseHistory.length === 0 && (
-                    <tr><td colSpan={5} className="p-4 text-center text-gray-500">No purchases found in this timeframe.</td></tr>
+                    <tr><td colSpan={5} className="p-4 text-center text-gray-400">No purchases found in this timeframe.</td></tr>
                   )}
                 </tbody>
               </table>
@@ -162,7 +162,7 @@ function SupplierDetailContent() {
                     </tr>
                   ))}
                   {data.paymentHistory.length === 0 && (
-                    <tr><td colSpan={3} className="p-4 text-center text-gray-500">No payments sent in this timeframe.</td></tr>
+                    <tr><td colSpan={3} className="p-4 text-center text-gray-400">No payments sent in this timeframe.</td></tr>
                   )}
                 </tbody>
               </table>

@@ -1,4 +1,5 @@
 'use client';
+import { toast } from 'sonner';
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
@@ -46,12 +47,13 @@ export default function EmployeesDashboard() {
 
   const handleAddEmployee = async (e: React.FormEvent) => {
     e.preventDefault();
-    await fetch('/api/owner/employees', {
+    const res = await fetch('/api/owner/employees', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(newEmp)
     });
-    alert('Employee added successfully!');
+    if (!res.ok) { toast.error('Operation failed'); return; }
+    toast.success('Employee added successfully!');
     setShowAddForm(false);
     setNewEmp({ name: '', role: 'Worker', baseSalary: '' });
     fetchEmployees();
@@ -115,17 +117,17 @@ export default function EmployeesDashboard() {
 
             <div className="space-y-3">
               <div className="flex justify-between border-b border-[#333] pb-2">
-                <span className="text-gray-500 text-sm">Base Salary</span>
+                <span className="text-gray-400 text-sm">Base Salary</span>
                 <span className="font-bold text-gray-200">₹ {emp.baseSalary.toLocaleString('en-IN')}/mo</span>
               </div>
               <div className="flex justify-between border-b border-[#333] pb-2">
-                <span className="text-gray-500 text-sm">Total Pending Advance</span>
+                <span className="text-gray-400 text-sm">Total Pending Advance</span>
                 <span className={`font-bold ${emp.advanceWarning ? 'text-red-500' : 'text-gray-200'}`}>
                   ₹ {emp.totalAdvances.toLocaleString('en-IN')}
                 </span>
               </div>
               <div className="flex justify-between pb-2">
-                <span className="text-gray-500 text-sm">Advance Ratio</span>
+                <span className="text-gray-400 text-sm">Advance Ratio</span>
                 <span className="font-bold text-gray-200">{emp.monthsAdvance}x Monthly Salary</span>
               </div>
             </div>
@@ -136,7 +138,7 @@ export default function EmployeesDashboard() {
               </div>
             )}
 
-            <div className="mt-4 pt-4 border-t border-[#333] text-center text-sm text-gray-500 hover:text-white transition-colors">
+            <div className="mt-4 pt-4 border-t border-[#333] text-center text-sm text-gray-400 hover:text-white transition-colors">
                Click for Full Analytics & Salary Manager →
             </div>
           </div>

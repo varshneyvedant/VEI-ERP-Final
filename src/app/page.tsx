@@ -25,7 +25,7 @@ export default function Home() {
     <div className="max-w-4xl mx-auto mt-10">
       <div className="card text-center p-12">
         <h1 className="text-4xl font-bold mb-4">Loading Secure Environment...</h1>
-        <p className="text-gray-500 mb-8">
+        <p className="text-gray-400 mb-8">
           Redirecting to your authorized portal.
         </p>
       </div>

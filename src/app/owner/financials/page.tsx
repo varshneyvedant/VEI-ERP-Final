@@ -85,29 +85,29 @@ export default function FinancialsDashboard() {
   };
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
-      <h2 className="text-3xl font-bold mb-4 flex items-center gap-2">
+    <div className="max-w-7xl 2xl:max-w-[1600px] mx-auto space-y-6">
+      <h2 className="text-2xl sm:text-3xl font-bold mb-2 sm:mb-4 flex items-center gap-2">
         <span className="text-red-500">Financial</span> & Production Overview
       </h2>
 
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div className="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-3">
         <TimeframeSelector value={timeframe} onChange={setTimeframe} />
-        <div className="flex gap-2">
+        <div className="flex bg-[#1a1a1a] p-1 rounded-lg border border-[#333] w-full md:w-auto overflow-x-auto no-scrollbar">
           <button
             onClick={() => setActiveTab('analytics')}
-            className={`px-4 py-1.5 rounded font-bold text-sm transition-all ${activeTab === 'analytics' ? 'bg-red-500 text-white shadow' : 'bg-[#2a2a2a] text-gray-400 hover:text-white'}`}
+            className={`flex-1 md:flex-initial px-3 py-1.5 rounded-md font-bold text-xs sm:text-sm transition-all whitespace-nowrap ${activeTab === 'analytics' ? 'bg-red-500 text-white shadow' : 'text-gray-400 hover:text-white'}`}
           >
             Analytics & Charts
           </button>
           <button
             onClick={() => setActiveTab('pl')}
-            className={`px-4 py-1.5 rounded font-bold text-sm transition-all ${activeTab === 'pl' ? 'bg-red-500 text-white shadow' : 'bg-[#2a2a2a] text-gray-400 hover:text-white'}`}
+            className={`flex-1 md:flex-initial px-3 py-1.5 rounded-md font-bold text-xs sm:text-sm transition-all whitespace-nowrap ${activeTab === 'pl' ? 'bg-red-500 text-white shadow' : 'text-gray-400 hover:text-white'}`}
           >
             Profit & Loss (P&L)
           </button>
           <button
             onClick={() => setActiveTab('bs')}
-            className={`px-4 py-1.5 rounded font-bold text-sm transition-all ${activeTab === 'bs' ? 'bg-red-500 text-white shadow' : 'bg-[#2a2a2a] text-gray-400 hover:text-white'}`}
+            className={`flex-1 md:flex-initial px-3 py-1.5 rounded-md font-bold text-xs sm:text-sm transition-all whitespace-nowrap ${activeTab === 'bs' ? 'bg-red-500 text-white shadow' : 'text-gray-400 hover:text-white'}`}
           >
             Balance Sheet
           </button>
@@ -116,26 +116,26 @@ export default function FinancialsDashboard() {
 
       {!loading && data && activeTab === 'analytics' && (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4 mb-6 sm:mb-8">
              <div className="card border-t-2 border-t-green-500 bg-gradient-to-b from-green-950/20 to-transparent">
                <div className="text-gray-400 text-xs mb-1 flex items-center gap-1"><Banknote size={14}/> Revenue</div>
-               <div className="text-2xl font-bold text-white">{formatCurrency(data.metrics.totalRevenue)}</div>
+               <div className="text-xl sm:text-2xl font-bold text-white tabular-nums">{formatCurrency(data.metrics.totalRevenue)}</div>
              </div>
              <div className="card border-t-2 border-t-blue-500 bg-gradient-to-b from-blue-950/20 to-transparent">
                <div className="text-gray-400 text-xs mb-1 flex items-center gap-1"><TrendingUp size={14}/> Gross Profit</div>
-               <div className="text-2xl font-bold text-white">{formatCurrency(data.metrics.totalGrossProfit)}</div>
+               <div className="text-xl sm:text-2xl font-bold text-white tabular-nums">{formatCurrency(data.metrics.totalGrossProfit)}</div>
              </div>
              <div className="card border-t-2 border-t-orange-500 bg-gradient-to-b from-orange-950/20 to-transparent">
                <div className="text-gray-400 text-xs mb-1 flex items-center gap-1"><Factory size={14}/> Expenses</div>
-               <div className="text-2xl font-bold text-white">{formatCurrency(data.metrics.totalExpenses)}</div>
+               <div className="text-xl sm:text-2xl font-bold text-white tabular-nums">{formatCurrency(data.metrics.totalExpenses)}</div>
              </div>
              <div className="card border-t-2 border-t-purple-500 bg-gradient-to-b from-purple-950/20 to-transparent">
                <div className="text-gray-400 text-xs mb-1 flex items-center gap-1"><ArrowUpRight size={14}/> Net Profit</div>
-               <div className="text-2xl font-bold text-white">{formatCurrency(data.metrics.totalNetProfit)}</div>
+               <div className="text-xl sm:text-2xl font-bold text-white tabular-nums">{formatCurrency(data.metrics.totalNetProfit)}</div>
              </div>
-             <div className="card border-t-2 border-t-red-500 bg-gradient-to-b from-red-950/20 to-transparent">
+             <div className="card border-t-2 border-t-red-500 bg-gradient-to-b from-red-950/20 to-transparent sm:col-span-2 lg:col-span-1">
                <div className="text-gray-400 text-xs mb-1 flex items-center gap-1">Net Margin/Ton</div>
-               <div className="text-2xl font-bold text-white">{formatCurrency(data.metrics.avgProfitPerTon)}<span className="text-xs text-gray-500 font-normal">/T</span></div>
+               <div className="text-xl sm:text-2xl font-bold text-white tabular-nums">{formatCurrency(data.metrics.avgProfitPerTon)}<span className="text-xs text-gray-400 font-normal">/T</span></div>
              </div>
           </div>
 
@@ -143,26 +143,26 @@ export default function FinancialsDashboard() {
             <div className="card border-l-4 border-l-green-500">
               <div className="text-gray-400 text-sm mb-1 flex items-center gap-2"><MoveUpRight size={16}/> Receivables (Customers Owe Us)</div>
               <div className="text-3xl font-bold text-white">{formatCurrency(data.totalReceivables)}</div>
-              <p className="text-xs text-gray-500 mt-1">Current Balance</p>
+              <p className="text-xs text-gray-400 mt-1">Current Balance</p>
             </div>
             <div className="card border-l-4 border-l-red-500">
               <div className="text-gray-400 text-sm mb-1 flex items-center gap-2"><CreditCard size={16}/> Payables (We Owe Suppliers)</div>
               <div className="text-3xl font-bold text-white">{formatCurrency(data.totalPayables)}</div>
-              <p className="text-xs text-gray-500 mt-1">Current Balance</p>
+              <p className="text-xs text-gray-400 mt-1">Current Balance</p>
             </div>
             <div className="card border-l-4 border-l-blue-500 bg-blue-950/10">
               <div className="text-gray-400 text-sm mb-1">Global Net Position</div>
               <div className="text-3xl font-bold text-blue-400">
                 {data.netAmount < 0 ? '-' : ''}{formatCurrency(Math.abs(data.netAmount))}
               </div>
-              <p className="text-xs text-gray-500 mt-1">Receivables - Payables</p>
+              <p className="text-xs text-gray-400 mt-1">Receivables - Payables</p>
             </div>
             <div className="card border-l-4 border-l-emerald-500 bg-emerald-950/10">
               <div className="text-gray-400 text-sm mb-1 flex items-center gap-2"><Banknote size={16}/> Cash In Hand</div>
               <div className="text-3xl font-bold text-emerald-400">
                 {data.cashInHand < 0 ? '-' : ''}{formatCurrency(Math.abs(data.cashInHand))}
               </div>
-              <p className="text-xs text-gray-500 mt-1">Total In - Total Out</p>
+              <p className="text-xs text-gray-400 mt-1">Total In - Total Out</p>
             </div>
           </div>
         </>
@@ -208,7 +208,7 @@ export default function FinancialsDashboard() {
                       <div className="text-2xl font-bold text-red-400">{Number(data?.paymentAnalytics?.customers?.slowestDays || 0).toFixed(1)} Days</div>
                    </div>
                 </div>
-                <p className="text-xs text-gray-500 mt-4 text-center">Based on {data?.paymentAnalytics?.customers?.completedOrders || 0} fully paid invoices</p>
+                <p className="text-xs text-gray-400 mt-4 text-center">Based on {data?.paymentAnalytics?.customers?.completedOrders || 0} fully paid invoices</p>
              </div>
 
              <div className="card">
@@ -225,7 +225,7 @@ export default function FinancialsDashboard() {
                       <div className="text-2xl font-bold text-red-400">{Number(data?.paymentAnalytics?.suppliers?.slowestDays || 0).toFixed(1)} Days</div>
                    </div>
                 </div>
-                <p className="text-xs text-gray-500 mt-4 text-center">Based on {data?.paymentAnalytics?.suppliers?.completedOrders || 0} fully paid invoices</p>
+                <p className="text-xs text-gray-400 mt-4 text-center">Based on {data?.paymentAnalytics?.suppliers?.completedOrders || 0} fully paid invoices</p>
              </div>
           </div>
 
@@ -254,7 +254,7 @@ export default function FinancialsDashboard() {
                 <div className="p-4 bg-[#1a1a1a] rounded border border-[#333]">
                    <div className="text-gray-400 text-xs mb-1">Predictive Scrap Value</div>
                    <div className="text-2xl font-bold text-emerald-400">{formatCurrency(data?.inventoryOptimization?.predictedScrapValue || 0)}</div>
-                   <p className="text-[10px] text-gray-500 mt-1">From {data?.inventoryOptimization?.predictedScrapTons}T forecast yield</p>
+                   <p className="text-[10px] text-gray-400 mt-1">From {data?.inventoryOptimization?.predictedScrapTons}T forecast yield</p>
                 </div>
              </div>
           </div>
@@ -288,7 +288,7 @@ export default function FinancialsDashboard() {
                    <div className={`text-6xl font-black ${data.overallYield >= 95 ? 'text-green-500' : 'text-red-500'}`}>
                      {Number(data.overallYield).toFixed(2)}%
                    </div>
-                   <p className="text-gray-500 mt-4 text-center text-sm">
+                   <p className="text-gray-400 mt-4 text-center text-sm">
                      Target yield is 95%+. Represents Wire Produced / Raw Copper Used.
                    </p>
                  </div>
@@ -302,7 +302,7 @@ export default function FinancialsDashboard() {
           >
             <div className="flex justify-between items-center mb-4">
                <h3 className="text-lg text-gray-300 font-bold group-hover:text-orange-400 transition-colors">Factory Expenses Breakdown ({timeframe})</h3>
-               <span className="text-sm text-gray-500 group-hover:text-orange-400">View Deep Dive →</span>
+               <span className="text-sm text-gray-400 group-hover:text-orange-400">View Deep Dive →</span>
             </div>
             <div className="flex flex-col md:flex-row items-center h-80">
               <div className="w-full md:w-1/2 h-full">
@@ -338,7 +338,7 @@ export default function FinancialsDashboard() {
                       <span className="font-bold text-white">₹ {e.value.toLocaleString('en-IN')}</span>
                    </div>
                  ))}
-                 {data.expenseBreakdown.length === 0 && <div className="text-gray-500">No expenses in this timeframe.</div>}
+                 {data.expenseBreakdown.length === 0 && <div className="text-gray-400">No expenses in this timeframe.</div>}
               </div>
             </div>
           </div>
@@ -397,7 +397,7 @@ export default function FinancialsDashboard() {
              {loadingPayments ? (
                <div className="text-gray-400 py-8 text-center text-sm">Loading payments log...</div>
              ) : !paymentsData || paymentsData.length === 0 ? (
-               <div className="text-gray-500 py-8 text-center text-sm italic">No recent stakeholder payments found.</div>
+               <div className="text-gray-400 py-8 text-center text-sm italic">No recent stakeholder payments found.</div>
              ) : (
                <div className="overflow-x-auto">
                  <table className="w-full text-left text-sm">
@@ -420,7 +420,7 @@ export default function FinancialsDashboard() {
                            </span>
                          </td>
                          <td className="p-3 font-semibold text-white">
-                           {payment.customer?.name || payment.supplier?.name || <span className="text-gray-500 italic">None</span>}
+                           {payment.customer?.name || payment.supplier?.name || <span className="text-gray-400 italic">None</span>}
                          </td>
                          <td className={`p-3 font-bold text-base ${payment.type === 'INCOMING' ? 'text-green-400' : 'text-red-400'}`}>
                            {payment.type === 'INCOMING' ? '+' : '-'}{formatCurrency(Number(payment.amount))}
@@ -535,7 +535,7 @@ export default function FinancialsDashboard() {
               <div className="space-y-4">
                 <h4 className="text-sm font-bold text-white border-b border-[#333] pb-2 uppercase tracking-wide text-green-400">Assets (Dr.)</h4>
                 <div className="space-y-2">
-                  <span className="text-xs uppercase font-extrabold text-gray-500 block mb-1">Current Assets</span>
+                  <span className="text-xs uppercase font-extrabold text-gray-400 block mb-1">Current Assets</span>
                   <div className="flex justify-between p-2 hover:bg-[#252525] rounded transition-colors pl-2">
                     <span>Cash & Bank Balance</span>
                     <span className="font-mono text-white font-semibold">{formatCurrency(bs.cashBank)}</span>
@@ -565,7 +565,7 @@ export default function FinancialsDashboard() {
                   <h4 className="text-sm font-bold text-white border-b border-[#333] pb-2 uppercase tracking-wide text-red-400">Liabilities & Equity (Cr.)</h4>
                   
                   <div className="space-y-2">
-                    <span className="text-xs uppercase font-extrabold text-gray-500 block mb-1">Current Liabilities</span>
+                    <span className="text-xs uppercase font-extrabold text-gray-400 block mb-1">Current Liabilities</span>
                     <div className="flex justify-between p-2 hover:bg-[#252525] rounded transition-colors pl-2">
                       <span>Accounts Payable (AP)</span>
                       <span className="font-mono text-white font-semibold">{formatCurrency(bs.accountsPayable)}</span>
@@ -577,7 +577,7 @@ export default function FinancialsDashboard() {
                   </div>
 
                   <div className="space-y-2 mt-4">
-                    <span className="text-xs uppercase font-extrabold text-gray-500 block mb-1">Owner Equity</span>
+                    <span className="text-xs uppercase font-extrabold text-gray-400 block mb-1">Owner Equity</span>
                     <div className="flex justify-between p-2 hover:bg-[#252525] rounded transition-colors pl-2">
                       <span>Retained Earnings</span>
                       <span className="font-mono text-white font-semibold">{formatCurrency(bs.retainedEarnings)}</span>

@@ -1,4 +1,5 @@
 'use client';
+import { toast } from 'sonner';
 
 import { formatDateIST } from '@/lib/format';
 
@@ -58,12 +59,13 @@ export default function AdvancesPage() {
 
   const handleConfirmAdvance = async () => {
     setShowAdvanceConfirm(false);
-    await fetch('/api/manager/advances', {
+    const res = await fetch('/api/manager/advances', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(formData)
     });
-    alert('Advance logged successfully!');
+    if (!res.ok) { toast.error('Operation failed'); return; }
+    toast.success('Advance logged successfully!');
     setFormData({ ...formData, amount: '', reason: '' });
     fetchAiData();
   };
@@ -77,7 +79,7 @@ export default function AdvancesPage() {
     setShowRepayConfirm(false);
     const finalAmount = parseFloat(repaymentData.amount) * multiplier;
 
-    await fetch('/api/manager/advances', {
+    const res = await fetch('/api/manager/advances', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -86,7 +88,8 @@ export default function AdvancesPage() {
          amount: finalAmount
       })
     });
-    alert('Repayment logged successfully and auto-applied to oldest pending advances!');
+    if (!res.ok) { toast.error('Operation failed'); return; }
+    toast.success('Repayment logged successfully and auto-applied to oldest pending advances!');
     setRepaymentData({ amount: '' });
     fetchAiData();
   };
@@ -98,8 +101,9 @@ export default function AdvancesPage() {
       </h2>
 
       <div className="mb-6">
-        <label className="block text-sm text-gray-400 mb-1">Select Employee</label>
+        <label htmlFor="employeeId" className="block text-sm text-gray-400 mb-1">Select Employee</label>
         <select
+          id="employeeId"
           className="input-field max-w-md"
           value={formData.employeeId}
           onChange={e => setFormData({...formData, employeeId: e.target.value})}
@@ -131,23 +135,26 @@ export default function AdvancesPage() {
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                <div>
-                 <label className="block text-sm text-gray-400 mb-1">Advance Amount (₹)</label>
+                 <label htmlFor="amount" className="block text-sm text-gray-400 mb-1">Advance Amount (₹)</label>
                  <input
+                   id="amount"
                    type="number" step="0.01" className="input-field" required
                    value={formData.amount} onChange={e => setFormData({...formData, amount: e.target.value})}
                  />
                </div>
                <div>
-                 <label className="block text-sm text-gray-400 mb-1">Date of Record</label>
+                 <label htmlFor="date" className="block text-sm text-gray-400 mb-1">Date of Record</label>
                  <input
+                   id="date"
                    type="datetime-local" className="input-field" required
                    value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})}
                  />
                </div>
              </div>
              <div>
-               <label className="block text-sm text-gray-400 mb-1">Reason</label>
+               <label htmlFor="reason" className="block text-sm text-gray-400 mb-1">Reason</label>
                <input
+                 id="reason"
                  type="text" className="input-field" required
                  value={formData.reason} onChange={e => setFormData({...formData, reason: e.target.value})}
                />
@@ -164,10 +171,11 @@ export default function AdvancesPage() {
           <h3 className="text-xl font-bold text-gray-300">Record Repayment / Deduction</h3>
           <form onSubmit={handleRepaySubmit} className="flex flex-col gap-4">
             <div>
-               <label className="block text-sm text-gray-400 mb-1">Repayment Amount</label>
+               <label htmlFor="repaymentAmount" className="block text-sm text-gray-400 mb-1">Repayment Amount</label>
                <div className="flex gap-2 items-center bg-[#222] border border-[#333] rounded-md focus-within:border-green-500 overflow-hidden">
                  <span className="pl-3 text-gray-400 font-bold">₹</span>
                  <input
+                   id="repaymentAmount"
                    type="number" step="0.01" className="bg-transparent font-bold h-12 flex-1 outline-none px-2 text-white" required
                    value={repaymentData.amount} onChange={e => setRepaymentData({...repaymentData, amount: e.target.value})}
                    placeholder="Enter amount..."
@@ -188,7 +196,7 @@ export default function AdvancesPage() {
                    Final: <span className="text-white font-bold">{formatCurrency(parseFloat(repaymentData.amount) * multiplier)}</span>
                  </p>
                )}
-               <p className="text-xs text-gray-500 mt-2">Repayments are automatically applied to the oldest pending advance first.</p>
+               <p className="text-xs text-gray-400 mt-2">Repayments are automatically applied to the oldest pending advance first.</p>
             </div>
             <button type="submit" className="btn-primary mt-2 bg-green-600 hover:bg-green-700 text-white">
               Log Repayment
@@ -265,7 +273,7 @@ export default function AdvancesPage() {
               ))}
               {(!aiData?.advances || aiData.advances.length === 0) && (
                 <tr>
-                  <td colSpan={5} className="p-4 text-center text-gray-500">No advances recorded for this employee.</td>
+                  <td colSpan={5} className="p-4 text-center text-gray-400">No advances recorded for this employee.</td>
                 </tr>
               )}
             </tbody>
@@ -285,20 +293,20 @@ export default function AdvancesPage() {
 
               <div className="space-y-3 mb-6 text-sm text-gray-300">
                  <div className="flex justify-between">
-                    <span className="text-gray-500">Employee Name:</span>
+                    <span className="text-gray-400">Employee Name:</span>
                     <span className="font-bold text-white">
                        {employees.find(emp => emp.id === formData.employeeId)?.name || ''}
                     </span>
                   </div>
                   <div className="flex justify-between">
-                     <span className="text-gray-500">Advance Amount:</span>
+                     <span className="text-gray-400">Advance Amount:</span>
                      <span className="font-bold text-red-500">{formatCurrency(parseFloat(formData.amount))}</span>
                   </div>
                   <div className="flex justify-between">
-                     <span className="text-gray-500">Reason / Description:</span>
+                     <span className="text-gray-400">Reason / Description:</span>
                      <span className="font-bold text-white">{formData.reason}</span>
                   </div>
-                  <div className="flex justify-between border-t border-[#333]/30 pt-2 text-xs text-gray-500">
+                  <div className="flex justify-between border-t border-[#333]/30 pt-2 text-xs text-gray-400">
                      <span>Log Date:</span>
                      <span>{formData.date ? formatDateIST(formData.date) : 'Current Time'}</span>
                   </div>
@@ -334,16 +342,16 @@ export default function AdvancesPage() {
 
               <div className="space-y-3 mb-6 text-sm text-gray-300">
                  <div className="flex justify-between">
-                    <span className="text-gray-500">Employee Name:</span>
+                    <span className="text-gray-400">Employee Name:</span>
                     <span className="font-bold text-white">
                        {employees.find(emp => emp.id === formData.employeeId)?.name || ''}
                     </span>
                  </div>
                  <div className="flex justify-between">
-                    <span className="text-gray-500">Repayment Amount:</span>
+                    <span className="text-gray-400">Repayment Amount:</span>
                     <span className="font-bold text-green-400">{formatCurrency(parseFloat(repaymentData.amount) * multiplier)}</span>
                  </div>
-                 <div className="flex justify-between border-t border-[#333]/30 pt-2 text-xs text-gray-500">
+                 <div className="flex justify-between border-t border-[#333]/30 pt-2 text-xs text-gray-400">
                     <span>Target:</span>
                     <span className="italic text-gray-400">Auto-applies to oldest pending advances</span>
                  </div>

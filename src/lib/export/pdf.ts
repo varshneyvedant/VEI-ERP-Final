@@ -5,6 +5,16 @@ export function exportToPDF(headers: string[], rows: any[][], title: string) {
     return;
   }
 
+  const escapeHtml = (unsafe: any) => {
+    if (unsafe === null || unsafe === undefined) return '-';
+    return String(unsafe)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+  };
+
   const currentDate = new Date().toLocaleDateString('en-IN', {
     dateStyle: 'long',
     timeZone: 'Asia/Kolkata'
@@ -19,7 +29,7 @@ export function exportToPDF(headers: string[], rows: any[][], title: string) {
     <!DOCTYPE html>
     <html>
     <head>
-      <title>${title}</title>
+      <title>${escapeHtml(title)}</title>
       <style>
         body {
           font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
@@ -102,7 +112,7 @@ export function exportToPDF(headers: string[], rows: any[][], title: string) {
       <div class="header">
         <div>
           <h1 class="company-name">VARSHNEY <span>ELECTRICAL INDUSTRIES</span></h1>
-          <h2 class="report-title">${title}</h2>
+          <h2 class="report-title">${escapeHtml(title)}</h2>
         </div>
         <div class="meta-info">
           <div><strong>Date:</strong> ${currentDate}</div>
@@ -114,13 +124,13 @@ export function exportToPDF(headers: string[], rows: any[][], title: string) {
       <table>
         <thead>
           <tr>
-            ${headers.map(h => `<th>${h}</th>`).join('')}
+            ${headers.map(h => `<th>${escapeHtml(h)}</th>`).join('')}
           </tr>
         </thead>
         <tbody>
           ${rows.map(row => `
             <tr>
-              ${row.map(cell => `<td>${cell !== undefined && cell !== null ? cell : '-'}</td>`).join('')}
+              ${row.map(cell => `<td>${escapeHtml(cell)}</td>`).join('')}
             </tr>
           `).join('')}
         </tbody>

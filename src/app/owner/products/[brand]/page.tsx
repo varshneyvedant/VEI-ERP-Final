@@ -76,7 +76,7 @@ function BrandDetailContent() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
              <div className="card border-t-2 border-t-purple-500 bg-gradient-to-b from-purple-950/20 to-transparent">
                <div className="text-gray-400 text-xs mb-1 flex items-center gap-1"><Box size={14}/> Total Volume Sold</div>
-               <div className="text-3xl font-bold text-white">{Number(data.totalBrandVolume).toFixed(2)}<span className="text-sm font-normal text-gray-500 ml-1">Tons</span></div>
+               <div className="text-3xl font-bold text-white">{Number(data.totalBrandVolume).toFixed(2)}<span className="text-sm font-normal text-gray-400 ml-1">Tons</span></div>
              </div>
              <div className="card border-t-2 border-t-green-500 bg-gradient-to-b from-green-950/20 to-transparent">
                <div className="text-gray-400 text-xs mb-1 flex items-center gap-1">Brand Revenue</div>
@@ -135,7 +135,7 @@ function BrandDetailContent() {
                        <td className="p-3 text-blue-400 text-right">{Number(buyer.compProfPercent).toFixed(1)}%</td>
                      </tr>
                    ))}
-                   {data.buyers.length === 0 && <tr><td colSpan={6} className="p-4 text-center text-gray-500">No buyers found.</td></tr>}
+                   {data.buyers.length === 0 && <tr><td colSpan={6} className="p-4 text-center text-gray-400">No buyers found.</td></tr>}
                  </tbody>
                </table>
              </div>
@@ -182,7 +182,7 @@ function BrandDetailContent() {
                        </td>
                      </tr>
                    ))}
-                   {data.history.length === 0 && <tr><td colSpan={9} className="p-4 text-center text-gray-500">No orders found.</td></tr>}
+                   {data.history.length === 0 && <tr><td colSpan={9} className="p-4 text-center text-gray-400">No orders found.</td></tr>}
                  </tbody>
                </table>
              </div>

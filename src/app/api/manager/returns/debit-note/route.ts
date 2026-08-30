@@ -1,12 +1,24 @@
 export const dynamic = "force-dynamic";
 import { NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { prisma } from '@/lib/prisma';
 import { logAudit } from '@/lib/audit/logger';
 import { assertPeriodNotLocked } from '@/lib/periodLock';
 import { postJournalEntry } from '@/lib/ledger/journal';
 import { Prisma } from '@prisma/client';
+import { reconcileFIFOBook } from '@/lib/ledger/reconciliation';
 
 export async function GET() {
+  const session = await getServerSession(authOptions);
+  if (!session?.user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  const role = (session.user as any).role?.toLowerCase();
+  if (role !== 'manager' && role !== 'owner') {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
   try {
     const debitNotes = await prisma.debitNote.findMany({
       orderBy: { date: 'desc' },
@@ -23,6 +35,15 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  const role = (session.user as any).role?.toLowerCase();
+  if (role !== 'manager' && role !== 'owner') {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
   try {
     const body = await request.json();
     const { purchaseId, qtyReturned, amountDebited, reason } = body;
@@ -67,13 +88,30 @@ export async function POST(request: Request) {
       await postJournalEntry(tx, {
         date: new Date(),
         description: `Debit Note: Supplier Return to ${purchase.supplier.name} (ID: ${debitNote.id})`,
-        referenceType: 'DEBIT_NOTE',
+        referenceType: 'DEBIT_NOTE' as any,
         referenceId: debitNote.id,
         lines: [
           { accountName: 'Accounts Payable', accountType: 'LIABILITY' as const, debit: Number(amountDebited), credit: 0 },
           { accountName: 'Inventory', accountType: 'ASSET' as const, debit: 0, credit: Number(amountDebited) }
         ]
       });
+
+      // Reduce the purchase's qty and InventoryBatch quantity
+      await tx.purchase.update({
+          where: { id: purchaseId },
+          data: { qty: Number(purchase.qty) - Number(qtyReturned) }
+      });
+
+      await tx.inventoryBatch.updateMany({
+          where: { purchaseId: purchaseId },
+          data: { 
+             initialQty: { decrement: Number(qtyReturned) },
+             remainingQty: { decrement: Number(qtyReturned) }
+          }
+      });
+
+      // Trigger FIFO rebalance
+      await reconcileFIFOBook(tx);
 
       return debitNote;
     });

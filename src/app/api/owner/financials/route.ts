@@ -1,5 +1,7 @@
 export const dynamic = "force-dynamic";
 import { NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 
 
 import { prisma } from '@/lib/prisma';
@@ -13,6 +15,14 @@ import { getStartDateFromTimeframe, Timeframe } from '@/lib/timeframe';
 
 
 export async function GET(request: Request) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  if ((session.user as any).role?.toLowerCase() !== 'owner') {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
   try {
     const { searchParams } = new URL(request.url);
     const timeframe = (searchParams.get('timeframe') as Timeframe) || '1M';
@@ -48,8 +58,8 @@ export async function GET(request: Request) {
     // - All PAID Factory Expenses
     // - All Salary Advances
     // + All Salary Advance Repayments
-    const tempCashInHandIn = await prisma.paymentRecord.aggregate({ where: { type: 'INCOMING' }, _sum: { amount: true } });
-    const tempCashInHandOut = await prisma.paymentRecord.aggregate({ where: { type: 'OUTGOING' }, _sum: { amount: true } });
+    const tempCashInHandIn = await prisma.paymentRecord.aggregate({ where: { type: 'INCOMING', status: 'APPROVED' }, _sum: { amount: true } });
+    const tempCashInHandOut = await prisma.paymentRecord.aggregate({ where: { type: 'OUTGOING', status: 'APPROVED' }, _sum: { amount: true } });
     const tempExpenses = await prisma.expense.aggregate({ where: { isDeleted: false, status: 'PAID' },  _sum: { amount: true } });
     const tempAdvances = await prisma.advance.aggregate({ _sum: { amount: true } });
     const tempRepayments = await prisma.advanceRepayment.aggregate({ _sum: { amount: true } });

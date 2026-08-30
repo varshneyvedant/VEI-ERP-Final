@@ -1,6 +1,8 @@
 import { ManagerAdvancePostSchema, ManagerAdvancePutSchema } from '@/lib/validations';
 export const dynamic = "force-dynamic";
 import { NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 
 
 import { prisma } from '@/lib/prisma';
@@ -11,6 +13,15 @@ import { postJournalEntry } from '@/lib/ledger/journal';
 
 
 export async function GET(request: Request) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  const role = (session.user as any).role?.toLowerCase();
+  if (role !== 'manager' && role !== 'owner') {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
   try {
     const { searchParams } = new URL(request.url);
     const empId = searchParams.get('empId');
@@ -57,6 +68,15 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  const role = (session.user as any).role?.toLowerCase();
+  if (role !== 'manager' && role !== 'owner') {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
   try {
     const body = await request.json();
 
@@ -69,14 +89,16 @@ export async function POST(request: Request) {
         const { employeeId, amount } = validation.data;
         let remainingRepayment = amount;
 
-        // Fetch unpaid advances for this employee ordered oldest first
-        const pendingAdvances = await prisma.advance.findMany({
+        // Fetch all advances for this employee, then filter for ones with remaining balance
+        const allAdvances = await prisma.advance.findMany({
           where: {
             employeeId,
-            amountRepaid: { lt: prisma.advance.fields.amount }
           },
           orderBy: { date: 'asc' }
         });
+        const pendingAdvances = allAdvances.filter(
+          a => Number(a.amountRepaid) < Number(a.amount)
+        );
 
         // Period Lock Check
         await assertPeriodNotLocked(new Date());
@@ -104,19 +126,23 @@ export async function POST(request: Request) {
              remainingRepayment -= payToThisAdvance;
           }
 
-          // Post Double-Entry Journal Entry
+          // Post Double-Entry Journal Entry (capped to actual amount repaid)
+          const actualRepaid = amount - remainingRepayment;
           const employee = await tx.employee.findUnique({ where: { id: employeeId } });
           const empName = employee ? employee.name : 'Employee';
 
-          await postJournalEntry(tx, {
-            date: new Date(),
-            description: `Salary Advance Repayment from ${empName}`,
-            referenceType: 'ADVANCE',
-            lines: [
-              { accountName: 'Cash & Bank', accountType: 'ASSET' as const, debit: Number(amount), credit: 0 },
-              { accountName: 'Employee Advances', accountType: 'ASSET' as const, debit: 0, credit: Number(amount) }
-            ]
-          });
+          if (actualRepaid > 0) {
+            await postJournalEntry(tx, {
+              date: new Date(),
+              description: `Salary Advance Repayment from ${empName}`,
+              referenceType: 'ADVANCE',
+              referenceId: employeeId,
+              lines: [
+                { accountName: 'Cash & Bank', accountType: 'ASSET' as const, debit: actualRepaid, credit: 0 },
+                { accountName: 'Employee Advances', accountType: 'ASSET' as const, debit: 0, credit: actualRepaid }
+              ]
+            });
+          }
         });
 
         await logAudit({

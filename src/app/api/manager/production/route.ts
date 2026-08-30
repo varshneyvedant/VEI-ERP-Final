@@ -1,6 +1,8 @@
 import { ManagerProductionPostSchema } from '@/lib/validations';
 export const dynamic = "force-dynamic";
 import { NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 
 
 import { prisma } from '@/lib/prisma';
@@ -11,6 +13,15 @@ import { reconcileFIFOBook } from '@/lib/ledger/reconciliation';
 import { checkIdempotency, completeIdempotency } from '@/lib/idempotency';
 
 export async function GET() {
+  const session = await getServerSession(authOptions);
+  if (!session?.user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  const role = (session.user as any).role?.toLowerCase();
+  if (role !== 'manager' && role !== 'owner') {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
   try {
     const productions = await prisma.production.findMany({ where: { isDeleted: false },
       orderBy: { date: 'desc' },
@@ -23,6 +34,15 @@ export async function GET() {
 }
 
 export async function DELETE(request: Request) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  const role = (session.user as any).role?.toLowerCase();
+  if (role !== 'manager' && role !== 'owner') {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
@@ -52,8 +72,15 @@ export async function DELETE(request: Request) {
        });
 
        await tx.production.update({ where: { id }, data: { isDeleted: true } });
+
+       // Zero out the finished goods batch so it's not sellable
+       await tx.finishedGoodsBatch.updateMany({
+          where: { productionId: id },
+          data: { remainingQty: 0, initialQty: 0 }
+       });
+
        await reconcileFIFOBook(tx);
-    });
+    }, { maxWait: 10000, timeout: 30000 });
 
     await logAudit({
       action: 'DELETE',
@@ -68,6 +95,15 @@ export async function DELETE(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  const role = (session.user as any).role?.toLowerCase();
+  if (role !== 'manager' && role !== 'owner') {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
   let idempotencyKey: string | null = null;
   try {
     const body = await request.json();
@@ -123,17 +159,7 @@ export async function POST(request: Request) {
       // Deduct from InventoryBatch (FIFO) and calculate exact cost
       let remainingToDeduct = parsedRaw;
 
-      // PostgreSQL Pessimistic Lock: Prevent any concurrent transaction from reading or deducting these batches until this commits.
-      // Instead of locking the whole table, we lock only the active raw copper batches to avoid timeout/deadlocks
-      const rawBatchesToLock = await tx.inventoryBatch.findMany({
-          where: { remainingQty: { gt: 0 } },
-          orderBy: { date: 'asc' }
-      });
-      const rawBatchIds = rawBatchesToLock.map(b => b.id);
-      if (rawBatchIds.length > 0) {
-          await tx.$executeRaw`SELECT id FROM "InventoryBatch" WHERE id = ANY(${rawBatchIds}) FOR UPDATE`;
-      }
-
+      // Fetch active batches for FIFO deduction (SQLite uses file-level locking via Prisma transaction)
       const batches = await tx.inventoryBatch.findMany({
           where: { remainingQty: { gt: 0 } },
           orderBy: { date: 'asc' }
@@ -196,14 +222,13 @@ export async function POST(request: Request) {
         referenceType: 'PRODUCTION' as any,
         referenceId: production.id,
         lines: [
-          { accountName: 'Inventory', accountType: 'ASSET' as const, debit: totalRawCost, credit: 0 },
-          { accountName: 'Inventory', accountType: 'ASSET' as const, debit: 0, credit: totalRawCost }
+          { accountName: 'Inventory - Finished Goods', accountType: 'ASSET' as const, debit: totalRawCost, credit: 0 },
+          { accountName: 'Inventory - Raw Materials', accountType: 'ASSET' as const, debit: 0, credit: totalRawCost }
         ]
       });
 
-      await reconcileFIFOBook(tx);
       return production;
-    });
+    }, { maxWait: 10000, timeout: 30000 });
 
     await logAudit({
       action: 'CREATE',

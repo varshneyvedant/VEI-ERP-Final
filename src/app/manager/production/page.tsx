@@ -1,4 +1,5 @@
 'use client';
+import { toast } from 'sonner';
 
 
 import { getCurrentISTInput, formatDateIST } from '@/lib/format';
@@ -64,8 +65,16 @@ export default function ProductionPage() {
     e.preventDefault();
     const rawVal = parseFloat(formData.rawCopperUsed) || 0;
     const prodVal = parseFloat(formData.wireProduced) || 0;
+    if (rawVal <= 0 || prodVal <= 0) {
+      toast.error("Please enter valid quantities for raw copper and wire produced.");
+      return;
+    }
     if (prodVal > rawVal) {
-      alert("Error: Finished wire produced cannot be greater than raw copper used!");
+      toast.error("Finished wire produced cannot be greater than raw copper used!");
+      return;
+    }
+    if (copperStock !== null && rawVal > copperStock) {
+      toast.error(`Cannot use ${rawVal.toFixed(2)}T of Raw Copper. Only ${copperStock.toFixed(2)}T available in warehouse stock!`);
       return;
     }
     setShowConfirmModal(true);
@@ -80,10 +89,10 @@ export default function ProductionPage() {
     });
     const data = await res.json();
     if (!res.ok || data.error) {
-      alert(data.error || 'Failed to record production');
+      toast.error(data.error || 'Failed to record production');
       return;
     }
-    alert('Production logged successfully!');
+    toast.success('Production logged successfully!');
     setFormData({ rawCopperUsed: '', productCategory: 'CC Wires', brand: 'Poly Vansh', wireType: '1mm', wireProduced: '', date: getCurrentISTInput() });
     fetchRecentProductions();
     fetchCopperStock();
@@ -121,11 +130,18 @@ export default function ProductionPage() {
             <input
               type="number"
               step="0.01"
-              className="input-field"
+              min="0.01"
+              max={copperStock ?? undefined}
+              className={`input-field ${copperStock !== null && parseFloat(formData.rawCopperUsed || '0') > copperStock ? 'border-red-500 bg-red-950/40 text-red-300 ring-1 ring-red-500' : ''}`}
               value={formData.rawCopperUsed}
               onChange={e => setFormData({...formData, rawCopperUsed: e.target.value})}
               required
             />
+            {copperStock !== null && parseFloat(formData.rawCopperUsed || '0') > copperStock && (
+              <p className="text-xs text-red-400 font-bold mt-1">
+                ⚠️ Exceeds stock (Max: {copperStock.toFixed(2)} Tons)
+              </p>
+            )}
           </div>
           <div>
             <label className="block text-sm text-gray-400 mb-1">Date of Record</label>
@@ -200,9 +216,9 @@ export default function ProductionPage() {
       </form>
 
       <div className="mt-10">
-        <div className="flex justify-between items-center mb-4">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
           <h3 className="text-xl font-bold text-gray-300">Recent Production History</h3>
-          <div className="flex gap-2">
+          <div className="flex gap-2 w-full sm:w-auto">
             <button
               onClick={() => {
                  const dataToExport = recentProductions.map((prod: any) => ({
@@ -216,7 +232,7 @@ export default function ProductionPage() {
                  }));
                  exportToExcel(dataToExport, `Production_History_${new Date().toISOString().slice(0,10)}`);
               }}
-              className="bg-[#1f2937] hover:bg-gray-700 text-white font-bold py-1.5 px-3 rounded text-xs transition-colors flex items-center gap-1.5"
+              className="flex-1 sm:flex-initial bg-[#1f2937] hover:bg-gray-700 text-white font-bold py-2 px-3 rounded text-xs transition-colors flex items-center justify-center gap-1.5"
             >
               <Download size={14}/> Export Excel
             </button>
@@ -234,37 +250,100 @@ export default function ProductionPage() {
                  ]);
                  exportToPDF(headers, rows, 'Recent Production History Report');
               }}
-              className="bg-red-600 hover:bg-red-700 text-white font-bold py-1.5 px-3 rounded text-xs transition-colors flex items-center gap-1.5"
+              className="flex-1 sm:flex-initial bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-3 rounded text-xs transition-colors flex items-center justify-center gap-1.5"
             >
               <Download size={14}/> Export PDF
             </button>
           </div>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-left bg-[#1a1a1a] rounded overflow-hidden">
+
+        {/* Mobile Production Cards (< 640px) */}
+        <div className="sm:hidden space-y-3">
+          {recentProductions.map((prod) => {
+            const rawVal = Number(prod.rawCopperUsed);
+            const prodVal = Number(prod.wireProduced);
+            const yld = rawVal > 0 ? ((prodVal / rawVal) * 100).toFixed(1) : '0.0';
+            return (
+              <div key={prod.id} className="p-4 bg-[#1a1a1a] rounded-lg border border-[#333] space-y-2.5">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h4 className="font-bold text-white text-sm">
+                      {prod.productCategory === 'Raw Copper Bundle' ? 'Raw Copper' : `${prod.brand || ''} ${prod.wireType}`}
+                    </h4>
+                    <span className="text-xs text-gray-400">{formatDateIST(prod.date)}</span>
+                  </div>
+                  <span className={`text-xs font-black px-2 py-0.5 rounded border ${Number(yld) >= 95 ? 'bg-green-950/40 text-green-400 border-green-500/20' : 'bg-red-950/40 text-red-400 border-red-500/20'}`}>
+                    Yield: {yld}%
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-xs bg-[#222] p-2.5 rounded border border-[#333]/50">
+                  <div>
+                    <span className="text-gray-400 block text-[10px] uppercase">Raw Used</span>
+                    <span className="font-bold text-gray-200">{rawVal.toFixed(2)} Tons</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-400 block text-[10px] uppercase">Produced</span>
+                    <span className="font-bold text-green-400">{prodVal.toFixed(2)} Tons</span>
+                  </div>
+                </div>
+                <div className="pt-2 border-t border-[#333] flex justify-end">
+                  <button 
+                    type="button" 
+                    onClick={() => handleUndo(prod.id)} 
+                    className="w-full py-1.5 text-center text-red-500 hover:text-red-400 text-xs font-bold bg-red-500/10 rounded border border-red-500/20 transition-colors"
+                  >
+                    Undo / Delete
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+          {recentProductions.length === 0 && (
+            <div className="p-6 text-center text-gray-400 card">No recent production records found.</div>
+          )}
+        </div>
+
+        {/* Desktop/Tablet Table (>= 640px) */}
+        <div className="hidden sm:block overflow-x-auto rounded-lg border border-[#333]">
+          <table className="w-full text-left bg-[#1a1a1a]">
             <thead className="bg-[#222]">
               <tr className="border-b border-[#333] text-gray-400 text-sm">
                 <th className="p-3">Date</th>
+                <th className="p-3">Category/Brand</th>
                 <th className="p-3">Raw Used</th>
                 <th className="p-3">Produced</th>
+                <th className="p-3">Yield</th>
                 <th className="p-3 text-center">Action</th>
               </tr>
             </thead>
             <tbody>
-              {recentProductions.map((prod) => (
-                <tr key={prod.id} className="border-b border-[#333] last:border-0 text-sm hover:bg-[#2a2a2a]">
-                  <td className="p-3 text-gray-300">{formatDateIST(prod.date)}</td>
-                  <td className="p-3 font-medium text-white">{Number(prod.rawCopperUsed).toFixed(2)} T</td>
-                  <td className="p-3 font-bold text-green-400">{Number(prod.wireProduced).toFixed(2)} T</td>
-                  <td className="p-3 text-center">
-                    <button type="button" onClick={() => handleUndo(prod.id)} className="text-red-500 hover:text-red-400 text-xs font-bold px-2 py-1 bg-red-500/10 rounded border border-red-500/20">
-                      Undo / Delete
-                    </button>
-                  </td>
-                </tr>
-              ))}
+              {recentProductions.map((prod) => {
+                const rawVal = Number(prod.rawCopperUsed);
+                const prodVal = Number(prod.wireProduced);
+                const yld = rawVal > 0 ? ((prodVal / rawVal) * 100).toFixed(1) : '0.0';
+                return (
+                  <tr key={prod.id} className="border-b border-[#333] last:border-0 text-sm hover:bg-[#2a2a2a] transition-colors">
+                    <td className="p-3 text-gray-300 whitespace-nowrap">{formatDateIST(prod.date)}</td>
+                    <td className="p-3 text-white font-medium">
+                      {prod.productCategory === 'Raw Copper Bundle' ? 'Raw Copper' : `${prod.brand || ''} ${prod.wireType}`}
+                    </td>
+                    <td className="p-3 text-gray-300 whitespace-nowrap">{rawVal.toFixed(2)} T</td>
+                    <td className="p-3 font-bold text-green-400 whitespace-nowrap">{prodVal.toFixed(2)} T</td>
+                    <td className="p-3 whitespace-nowrap">
+                      <span className={`text-xs font-bold px-2 py-0.5 rounded ${Number(yld) >= 95 ? 'text-green-400 bg-green-950/40' : 'text-red-400 bg-red-950/40'}`}>
+                        {yld}%
+                      </span>
+                    </td>
+                    <td className="p-3 text-center">
+                      <button type="button" onClick={() => handleUndo(prod.id)} className="text-red-500 hover:text-red-400 text-xs font-bold px-2.5 py-1 bg-red-500/10 rounded border border-red-500/20 transition-colors">
+                        Undo / Delete
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
               {recentProductions.length === 0 && (
-                <tr><td colSpan={4} className="p-4 text-center text-gray-500">No recent production found.</td></tr>
+                <tr><td colSpan={6} className="p-4 text-center text-gray-400">No recent production found.</td></tr>
               )}
             </tbody>
           </table>
@@ -283,38 +362,38 @@ export default function ProductionPage() {
 
               <div className="space-y-3 mb-6 text-sm text-gray-300">
                  <div className="flex justify-between">
-                    <span className="text-gray-500">Product Category:</span>
+                    <span className="text-gray-400">Product Category:</span>
                     <span className="font-bold text-white">{formData.productCategory}</span>
                  </div>
                  {formData.productCategory !== 'Raw Copper Bundle' && (
                     <>
                        <div className="flex justify-between">
-                          <span className="text-gray-500">Brand:</span>
+                          <span className="text-gray-400">Brand:</span>
                           <span className="font-bold text-white">{formData.brand}</span>
                        </div>
                        <div className="flex justify-between">
-                          <span className="text-gray-500">Wire Type / Size:</span>
+                          <span className="text-gray-400">Wire Type / Size:</span>
                           <span className="font-bold text-white">{formData.wireType}</span>
                        </div>
                     </>
                  )}
                  <div className="flex justify-between border-t border-[#333]/30 pt-2">
-                    <span className="text-gray-500">Raw Copper Used:</span>
+                    <span className="text-gray-400">Raw Copper Used:</span>
                     <span className="font-bold text-white">{formData.rawCopperUsed} Tons</span>
                  </div>
                  <div className="flex justify-between">
-                    <span className="text-gray-500">Finished Wire Produced:</span>
+                    <span className="text-gray-400">Finished Wire Produced:</span>
                     <span className="font-bold text-green-400">{formData.wireProduced} Tons</span>
                  </div>
                  <div className="flex justify-between">
-                    <span className="text-gray-500">Scrap Generated:</span>
+                    <span className="text-gray-400">Scrap Generated:</span>
                     <span className="font-bold text-red-500">{(parseFloat(formData.rawCopperUsed) - parseFloat(formData.wireProduced)).toFixed(2)} Tons</span>
                  </div>
                  <div className="flex justify-between bg-red-950/10 border border-red-900/30 p-2 rounded">
                     <span className="text-gray-400">Production Yield:</span>
                     <span className="font-bold text-white">{yieldPercent}%</span>
                  </div>
-                 <div className="flex justify-between border-t border-[#333]/30 pt-2 text-xs text-gray-500">
+                 <div className="flex justify-between border-t border-[#333]/30 pt-2 text-xs text-gray-400">
                     <span>Log Date:</span>
                     <span>{formData.date ? formatDateIST(formData.date) : 'Current Time'}</span>
                  </div>

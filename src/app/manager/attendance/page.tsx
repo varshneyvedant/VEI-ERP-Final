@@ -1,4 +1,5 @@
 'use client';
+import { toast } from 'sonner';
 
 import { formatDateIST } from '@/lib/format';
 
@@ -29,12 +30,13 @@ export default function AttendancePage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await fetch('/api/manager/attendance', {
+    const res = await fetch('/api/manager/attendance', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ attendance, date })
     });
-    alert('Attendance marked successfully!');
+    if (!res.ok) { toast.error('Operation failed'); return; }
+    toast.success('Attendance marked successfully!');
   };
 
   const handleStatusChange = (id: string, status: string) => {

@@ -9,7 +9,7 @@ export interface JournalLineInput {
 
 export interface JournalEntryInput {
   description: string;
-  referenceType?: 'SALE' | 'PURCHASE' | 'PAYMENT' | 'EXPENSE' | 'ADVANCE' | 'CREDIT_NOTE' | 'DEBIT_NOTE';
+  referenceType?: 'SALE' | 'PURCHASE' | 'PAYMENT' | 'EXPENSE' | 'ADVANCE' | 'CREDIT_NOTE' | 'DEBIT_NOTE' | 'SCRAP_SALE' | 'PRODUCTION';
   referenceId?: string;
   date?: Date;
   lines: JournalLineInput[];
@@ -17,7 +17,8 @@ export interface JournalEntryInput {
 
 /**
  * Centrally records a balanced Double-Entry Journal Entry inside a Prisma Transaction.
- * It strictly asserts that Total Debits equal Total Credits.
+ * Uses Prisma Decimal for precise financial arithmetic.
+ * Strictly asserts that Total Debits exactly equal Total Credits (within rounding to 2 decimal places).
  */
 export async function postJournalEntry(
   tx: Prisma.TransactionClient,
@@ -29,12 +30,23 @@ export async function postJournalEntry(
     throw new Error('Journal entry must have at least one transaction line item.');
   }
 
-  // 1. Calculate and assert balanced accounting equation (Debits = Credits)
-  const totalDebits = lines.reduce((sum, line) => sum + Number(line.debit), 0);
-  const totalCredits = lines.reduce((sum, line) => sum + Number(line.credit), 0);
+  // 1. Round each line to 2 decimal places FIRST, then check balance
+  const roundedLines = lines.map((line) => ({
+    ...line,
+    debit: new Prisma.Decimal(line.debit).toDecimalPlaces(2),
+    credit: new Prisma.Decimal(line.credit).toDecimalPlaces(2),
+  }));
 
-  // Allow for negligible rounding differences under 1 Paisa (0.01 INR)
-  if (Math.abs(totalDebits - totalCredits) > 0.01) {
+  // Calculate totals using Decimal arithmetic to avoid IEEE-754 rounding
+  let totalDebits = new Prisma.Decimal(0);
+  let totalCredits = new Prisma.Decimal(0);
+  for (const line of roundedLines) {
+    totalDebits = totalDebits.add(line.debit);
+    totalCredits = totalCredits.add(line.credit);
+  }
+
+  // Strict balance check — debits must exactly equal credits after rounding
+  if (!totalDebits.equals(totalCredits)) {
     throw new Error(
       `Double-Entry Bookkeeping Mismatch: Total Debits (₹${totalDebits.toFixed(
         2
@@ -42,7 +54,7 @@ export async function postJournalEntry(
     );
   }
 
-  // 2. Insert the Journal Entry
+  // 2. Insert the Journal Entry with precise Decimal values
   const journalEntry = await tx.journalEntry.create({
     data: {
       date: date || new Date(),
@@ -50,11 +62,11 @@ export async function postJournalEntry(
       referenceType,
       referenceId,
       lines: {
-        create: lines.map((line) => ({
+        create: roundedLines.map((line) => ({
           accountName: line.accountName,
           accountType: line.accountType,
-          debit: new Prisma.Decimal(line.debit.toFixed(2)),
-          credit: new Prisma.Decimal(line.credit.toFixed(2)),
+          debit: line.debit,
+          credit: line.credit,
         })),
       },
     },

@@ -53,25 +53,25 @@ export default function ProductsDashboard() {
                onClick={() => setExpandedCat(expandedCat === cat.categoryName ? null : cat.categoryName)}
              >
                 <div className="flex items-center gap-3">
-                   <ChevronRight className={`transition-transform ${expandedCat === cat.categoryName ? 'rotate-90 text-purple-500' : 'text-gray-500'}`} />
+                   <ChevronRight className={`transition-transform ${expandedCat === cat.categoryName ? 'rotate-90 text-purple-500' : 'text-gray-400'}`} />
                    <div>
                      <h3 className="text-xl font-black text-white flex items-center gap-2 group-hover:text-purple-400 transition-colors">
                         {cat.categoryName}
                      </h3>
-                     <p className="text-sm text-gray-500 mt-1">{Number(cat.totalTons).toFixed(2)} Tons Sold</p>
+                     <p className="text-sm text-gray-400 mt-1">{Number(cat.totalTons).toFixed(2)} Tons Sold</p>
                    </div>
                 </div>
                 <div className="flex gap-6 text-right">
                    <div>
-                     <div className="text-xs text-gray-500">Gross Profit</div>
+                     <div className="text-xs text-gray-400">Gross Profit</div>
                      <div className="font-bold text-blue-400">{formatCurrency(cat.totalGrossProfit)}</div>
                    </div>
                    <div>
-                     <div className="text-xs text-gray-500">Revenue</div>
+                     <div className="text-xs text-gray-400">Revenue</div>
                      <div className="font-bold text-green-500">{formatCurrency(cat.totalRevenue)}</div>
                    </div>
                    <div>
-                     <div className="text-xs text-gray-500">Avg Margin</div>
+                     <div className="text-xs text-gray-400">Avg Margin</div>
                      <div className={`font-bold ${cat.marginPercent > 0 ? 'text-white' : 'text-red-500'}`}>{Number(cat.marginPercent).toFixed(1)}%</div>
                    </div>
                 </div>
@@ -97,23 +97,23 @@ export default function ProductsDashboard() {
                             </div>
                             <div className="grid grid-cols-2 gap-4 max-w-sm">
                                <div>
-                                  <div className="text-xs text-gray-500">Total Volume</div>
+                                  <div className="text-xs text-gray-400">Total Volume</div>
                                   <div className="font-medium text-gray-300">{Number(brand.totalTons).toFixed(2)} Tons</div>
                                </div>
                                <div>
-                                  <div className="text-xs text-gray-500 flex items-center gap-1"><TrendingUp size={12}/> Profit / Ton</div>
+                                  <div className="text-xs text-gray-400 flex items-center gap-1"><TrendingUp size={12}/> Profit / Ton</div>
                                   <div className="font-medium text-purple-400">{formatCurrency(brand.avgProfitPerTon)}/T</div>
                                </div>
                             </div>
                          </div>
 
                          <div className="flex-1 border-l border-[#333] pl-6 ml-6">
-                            <h6 className="text-xs font-bold text-gray-500 mb-2 flex items-center gap-1"><Users size={12}/> Top Buyers</h6>
+                            <h6 className="text-xs font-bold text-gray-400 mb-2 flex items-center gap-1"><Users size={12}/> Top Buyers</h6>
                             <ul className="space-y-1">
                                {brand.topCustomers.map((cust: any) => (
                                  <li key={cust.name} className="flex justify-between text-sm">
                                     <span className="text-gray-300">{cust.name}</span>
-                                    <span className="font-bold text-gray-500">{Number(cust.qty).toFixed(2)}T</span>
+                                    <span className="font-bold text-gray-400">{Number(cust.qty).toFixed(2)}T</span>
                                  </li>
                                ))}
                                {brand.topCustomers.length === 0 && <li className="text-xs text-gray-600">No buyers found.</li>}
@@ -122,11 +122,11 @@ export default function ProductsDashboard() {
 
                          <div className="flex-1 border-l border-[#333] pl-6 ml-6 text-right">
                             <div className="mb-2">
-                               <div className="text-xs text-gray-500">Brand Revenue</div>
+                               <div className="text-xs text-gray-400">Brand Revenue</div>
                                <div className="font-bold text-green-500">{formatCurrency(brand.totalRevenue)}</div>
                             </div>
                             <div>
-                               <div className="text-xs text-gray-500">Brand Gross Profit</div>
+                               <div className="text-xs text-gray-400">Brand Gross Profit</div>
                                <div className="font-bold text-blue-400">{formatCurrency(brand.totalGrossProfit)}</div>
                             </div>
                          </div>

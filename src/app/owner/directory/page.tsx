@@ -1,4 +1,5 @@
 'use client';
+import { toast } from 'sonner';
 
 import { useState, useEffect } from 'react';
 import { BookOpen, Plus, Edit } from 'lucide-react';
@@ -89,12 +90,12 @@ export default function DirectoryPage() {
       });
 
       if (res.ok) {
-        alert(`${activeTab === 'customer' ? 'Customer' : 'Supplier'} saved successfully!`);
+        toast.success(`${activeTab === 'customer' ? 'Customer' : 'Supplier'} saved successfully!`);
         setShowForm(false);
         fetchData();
       } else {
         const errJson = await res.json();
-        alert(`Failed to save directory entry: ${errJson.error || 'Server error'}`);
+        toast.error(`Failed to save directory entry: ${errJson.error || 'Server error'}`);
       }
     } catch (err) {
       console.error(err);
@@ -187,19 +188,19 @@ export default function DirectoryPage() {
         return (
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
             <div className="card bg-[#1a1a1a] border-l-4 border-l-green-500 p-4">
-              <span className="text-[10px] uppercase font-bold text-gray-500">0 - 30 Days (Current)</span>
+              <span className="text-[10px] uppercase font-bold text-gray-400">0 - 30 Days (Current)</span>
               <p className="text-xl font-extrabold text-green-400 mt-1">{formatCurrency(agingTotals.bucket0_30)}</p>
             </div>
             <div className="card bg-[#1a1a1a] border-l-4 border-l-yellow-500 p-4">
-              <span className="text-[10px] uppercase font-bold text-gray-500">31 - 60 Days (Overdue)</span>
+              <span className="text-[10px] uppercase font-bold text-gray-400">31 - 60 Days (Overdue)</span>
               <p className="text-xl font-extrabold text-yellow-400 mt-1">{formatCurrency(agingTotals.bucket31_60)}</p>
             </div>
             <div className="card bg-[#1a1a1a] border-l-4 border-l-orange-500 p-4">
-              <span className="text-[10px] uppercase font-bold text-gray-500">61 - 90 Days (Critical)</span>
+              <span className="text-[10px] uppercase font-bold text-gray-400">61 - 90 Days (Critical)</span>
               <p className="text-xl font-extrabold text-orange-400 mt-1">{formatCurrency(agingTotals.bucket61_90)}</p>
             </div>
             <div className="card bg-[#1a1a1a] border-l-4 border-l-red-500 p-4">
-              <span className="text-[10px] uppercase font-bold text-gray-500">90+ Days (Risk)</span>
+              <span className="text-[10px] uppercase font-bold text-gray-400">90+ Days (Risk)</span>
               <p className="text-xl font-extrabold text-red-500 mt-1">{formatCurrency(agingTotals.bucket90_plus)}</p>
             </div>
             <div className="card bg-[#1a1a1a] border-l-4 border-l-blue-500 p-4 bg-blue-950/10">
@@ -243,7 +244,7 @@ export default function DirectoryPage() {
                     <tr key={item.id} className="border-b border-[#333] last:border-0 hover:bg-[#2a2a2a] text-sm">
                       <td className="p-3">
                         <span className="font-bold text-white block">{item.name}</span>
-                        {item.transport && <span className="text-[10px] text-gray-500">Transport: {item.transport}</span>}
+                        {item.transport && <span className="text-[10px] text-gray-400">Transport: {item.transport}</span>}
                       </td>
                       <td className="p-3 text-right font-extrabold text-blue-400 font-mono">{formatCurrency(item.creditBalance || 0)}</td>
                       <td className={`p-3 text-right font-mono ${aging.bucket0_30 > 0 ? 'text-green-400 font-bold' : 'text-gray-600'}`}>{aging.bucket0_30 > 0 ? formatCurrency(aging.bucket0_30) : '-'}</td>
@@ -252,7 +253,7 @@ export default function DirectoryPage() {
                       <td className={`p-3 text-right font-mono ${aging.bucket90_plus > 0 ? 'text-red-500 font-black' : 'text-gray-600'}`}>{aging.bucket90_plus > 0 ? formatCurrency(aging.bucket90_plus) : '-'}</td>
                       <td className="p-3 text-xs text-gray-400">
                         <span className="block text-white font-medium">{item.contact || 'No Contact'}</span>
-                        <span className="block text-[10px] text-gray-500 font-mono">GST: {item.gst || '-'}</span>
+                        <span className="block text-[10px] text-gray-400 font-mono">GST: {item.gst || '-'}</span>
                       </td>
                       <td className="p-3 text-right">
                          <button
@@ -284,7 +285,7 @@ export default function DirectoryPage() {
                 ))
               )}
               {(activeTab === 'customer' ? data.customers : data.suppliers).length === 0 && (
-                <tr><td colSpan={8} className="p-4 text-center text-gray-500">No entries found.</td></tr>
+                <tr><td colSpan={8} className="p-4 text-center text-gray-400">No entries found.</td></tr>
               )}
             </tbody>
           </table>

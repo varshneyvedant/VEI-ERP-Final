@@ -3,24 +3,26 @@ import { z } from 'zod';
 // Shared ID schema
 export const IdSchema = z.string().uuid();
 
-// Helper for strictly positive number validation (e.g., > 0)
+// Helper for strictly positive number validation (e.g., > 0, finite)
 const positiveNumber = z.union([z.string(), z.number()])
   .transform(val => parseFloat(String(val)))
-  .refine(val => !isNaN(val) && val > 0, { message: "Value must be a positive number greater than 0" });
+  .refine(val => !isNaN(val) && isFinite(val) && val > 0, { message: "Value must be a finite positive number greater than 0" });
 
-// Helper for non-negative number validation (e.g., >= 0)
+// Helper for non-negative number validation (e.g., >= 0, finite)
 const nonNegativeNumber = z.union([z.string(), z.number()])
   .transform(val => parseFloat(String(val)))
-  .refine(val => !isNaN(val) && val >= 0, { message: "Value must be a non-negative number" });
+  .refine(val => !isNaN(val) && isFinite(val) && val >= 0, { message: "Value must be a finite non-negative number" });
 
 // Manager Sales POST
 export const ManagerSalesPostSchema = z.object({
   customerId: IdSchema,
   date: z.string().optional().nullable().or(z.literal("")),
+  overridePin: z.string().optional().nullable(),
   items: z.array(z.object({
     productCategory: z.string(),
     brand: z.string().optional().nullable(),
     wireType: z.string().optional().nullable(),
+    saudaContractId: z.string().optional().nullable(),
     qty: positiveNumber,
     pricePerKg: positiveNumber,
   })).min(1, "At least one item is required")
@@ -93,9 +95,10 @@ export const ManagerPaymentPostSchema = z.object({
 
 // Owner Scrap POST
 export const OwnerScrapPostSchema = z.object({
-  type: z.enum(['GENERATED', 'SOLD']),
+  type: z.enum(['GENERATED', 'SOLD', 'PROCESS_LOSS_ADJUSTMENT']),
   qty: positiveNumber,
-  revenue: nonNegativeNumber,
+  revenue: nonNegativeNumber.optional().default(0),
+  notes: z.string().optional().nullable(),
   date: z.string().optional().nullable().or(z.literal("")),
 });
 

@@ -10,6 +10,15 @@ import { postJournalEntry } from '@/lib/ledger/journal';
 import { checkIdempotency, completeIdempotency } from '@/lib/idempotency';
 
 export async function GET() {
+  const session = await getServerSession(authOptions);
+  if (!session?.user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  const role = (session.user as any).role?.toLowerCase();
+  if (role !== 'manager' && role !== 'owner') {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+  
   try {
     const payments = await prisma.paymentRecord.findMany({
       orderBy: { date: 'desc' },
@@ -26,6 +35,15 @@ export async function GET() {
 }
 
 export async function DELETE(request: Request) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  const role = (session.user as any).role?.toLowerCase();
+  if (role !== 'manager' && role !== 'owner') {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
@@ -131,10 +149,18 @@ export async function DELETE(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  const role = (session.user as any).role?.toLowerCase();
+  if (role !== 'manager' && role !== 'owner') {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
   let idempotencyKey: string | null = null;
   try {
-    const session = await getServerSession(authOptions);
-    const isManager = (session?.user as any)?.role?.toLowerCase() === 'manager';
+    const isManager = role === 'manager';
 
     const body = await request.json();
     idempotencyKey = request.headers.get('x-idempotency-key') || body.idempotencyKey || null;

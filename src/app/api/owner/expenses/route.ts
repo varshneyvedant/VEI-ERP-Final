@@ -1,5 +1,7 @@
 export const dynamic = "force-dynamic";
 import { NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 
 
 import { prisma } from '@/lib/prisma';
@@ -13,6 +15,14 @@ import { format, eachMonthOfInterval, startOfMonth, isSameMonth } from 'date-fns
 
 
 export async function GET(request: Request) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  if ((session.user as any).role?.toLowerCase() !== 'owner') {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
   try {
     const { searchParams } = new URL(request.url);
     const timeframe = (searchParams.get('timeframe') as Timeframe) || '1M';

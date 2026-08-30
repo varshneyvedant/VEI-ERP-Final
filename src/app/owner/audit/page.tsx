@@ -170,7 +170,7 @@ export default function AuditDashboard() {
                          </span>
                       </td>
                       <td className="p-3 text-gray-300">{log.description}</td>
-                      <td className="p-3 text-gray-500 font-mono text-xs max-w-xs truncate" title={log.details}>
+                      <td className="p-3 text-gray-400 font-mono text-xs max-w-xs truncate" title={log.details}>
                          {log.details || '-'}
                       </td>
                       <td className="p-3 text-right whitespace-nowrap">
@@ -190,7 +190,7 @@ export default function AuditDashboard() {
                     </tr>
                   ))}
                   {logs.length === 0 && (
-                    <tr><td colSpan={7} className="p-4 text-center text-gray-500">No activity logs found for the selected criteria.</td></tr>
+                    <tr><td colSpan={7} className="p-4 text-center text-gray-400">No activity logs found for the selected criteria.</td></tr>
                   )}
                 </tbody>
               </table>

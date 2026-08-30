@@ -1,6 +1,8 @@
 import { ManagerPurchasePostSchema } from '@/lib/validations';
 export const dynamic = "force-dynamic";
 import { NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 
 
 import { prisma } from '@/lib/prisma';
@@ -11,6 +13,15 @@ import { reconcileFIFOBook } from '@/lib/ledger/reconciliation';
 import { checkIdempotency, completeIdempotency } from '@/lib/idempotency';
 
 export async function GET() {
+  const session = await getServerSession(authOptions);
+  if (!session?.user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  const role = (session.user as any).role?.toLowerCase();
+  if (role !== 'manager' && role !== 'owner') {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
   try {
     const purchases = await prisma.purchase.findMany({ where: { isDeleted: false },
       orderBy: { date: 'desc' },
@@ -26,6 +37,15 @@ export async function GET() {
 }
 
 export async function DELETE(request: Request) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  const role = (session.user as any).role?.toLowerCase();
+  if (role !== 'manager' && role !== 'owner') {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
@@ -56,8 +76,15 @@ export async function DELETE(request: Request) {
        });
 
         await tx.purchase.update({ where: { id }, data: { isDeleted: true } });
+
+        // Zero out the inventory batch so reconciler doesn't use it
+        await tx.inventoryBatch.updateMany({
+           where: { purchaseId: id },
+           data: { remainingQty: 0, initialQty: 0 }
+        });
+
         await reconcileFIFOBook(tx);
-     });
+     }, { maxWait: 10000, timeout: 30000 });
 
     await logAudit({
         action: 'DELETE',
@@ -72,6 +99,15 @@ export async function DELETE(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  const role = (session.user as any).role?.toLowerCase();
+  if (role !== 'manager' && role !== 'owner') {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
   let idempotencyKey: string | null = null;
   try {
     const body = await request.json();
@@ -155,9 +191,8 @@ export async function POST(request: Request) {
         ]
       });
 
-      await reconcileFIFOBook(tx);
       return purchase;
-    });
+    }, { maxWait: 10000, timeout: 30000 });
 
     await logAudit({
       action: 'CREATE',

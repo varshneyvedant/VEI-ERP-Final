@@ -1,6 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import { subDays, subMonths, startOfYear } from 'date-fns';
 import bcrypt from 'bcrypt';
+import { reconcileFIFOBook } from '../src/lib/ledger/reconciliation';
 
 const prisma = new PrismaClient();
 
@@ -27,6 +28,13 @@ async function main() {
   await prisma.salaryHistory.deleteMany();
   await prisma.employee.deleteMany();
   await prisma.paymentRecord.deleteMany();
+  await prisma.journalLine.deleteMany();
+  await prisma.journalEntry.deleteMany();
+  await prisma.creditNote.deleteMany();
+  await prisma.debitNote.deleteMany();
+  await prisma.finishedGoodsBatch.deleteMany();
+  await prisma.periodLock.deleteMany();
+  await prisma.idempotencyRecord.deleteMany();
 
   // 1.1 Initial Capital Injection
   await prisma.paymentRecord.create({
@@ -137,7 +145,7 @@ async function main() {
     // 80% chance of being fully paid, 20% chance of being completely unpaid (0 paid)
     const isFullyPaid = Math.random() < 0.8;
     const amountPaid = isFullyPaid ? totalValue : 0;
-    const fullyPaidDate = isFullyPaid ? subDays(d, -3) : null;
+    const fullyPaidDate = isFullyPaid ? subDays(d, 3) : null;
 
     const purchase = await prisma.purchase.create({
       data: {
@@ -174,7 +182,7 @@ async function main() {
     await prisma.supplierLedger.create({
       data: {
         supplierId: supplier.id,
-        date: subDays(d, -3),
+        date: subDays(d, 3),
         amount: -amountPaid,
         description: `Payment for Purchase ${purchase.id}`
       }
@@ -183,7 +191,7 @@ async function main() {
     if (amountPaid > 0) {
       const pRec = await prisma.paymentRecord.create({
         data: {
-          date: subDays(d, -3),
+          date: subDays(d, 3),
           amount: amountPaid,
           type: "OUTGOING",
           supplierId: supplier.id,
@@ -255,7 +263,7 @@ async function main() {
        const revenue = scrapSellQty * 1000000; // ~10 Lakh per ton for scrap copper
        const scrapSale = await prisma.scrapInventory.create({
           data: {
-             date: subDays(d, -1),
+             date: subDays(d, 1),
              type: "SOLD",
              qty: scrapSellQty,
              revenue: revenue
@@ -263,7 +271,7 @@ async function main() {
        });
        await prisma.paymentRecord.create({
           data: {
-             date: subDays(d, -1),
+             date: subDays(d, 1),
              amount: revenue,
              type: "INCOMING",
              scrapSaleId: scrapSale.id,
@@ -305,7 +313,7 @@ async function main() {
     // 80% chance of being fully paid, 20% chance of being completely unpaid (0 paid)
     const isSaleFullyPaid = Math.random() < 0.8;
     const amountPaid = isSaleFullyPaid ? finalTotalValue : 0;
-    const fullyPaidDate = isSaleFullyPaid ? subDays(d, -4) : null;
+    const fullyPaidDate = isSaleFullyPaid ? subDays(d, 4) : null;
 
     const sale = await prisma.sale.create({
       data: {
@@ -333,7 +341,7 @@ async function main() {
     await prisma.customerLedger.create({
         data: {
           customerId: customer.id,
-          date: subDays(d, -4),
+          date: subDays(d, 4),
           amount: -amountPaid,
           description: `Payment for Sale ${sale.id}`
         }
@@ -342,7 +350,7 @@ async function main() {
     if (amountPaid > 0) {
       const pRec = await prisma.paymentRecord.create({
         data: {
-          date: subDays(d, -4),
+          date: subDays(d, 4),
           amount: amountPaid,
           type: "INCOMING",
           customerId: customer.id,
@@ -401,6 +409,8 @@ async function main() {
   }
 
   console.log('Added attendance');
+  console.log('Reconciling FIFO book...');
+  await reconcileFIFOBook(prisma);
   console.log('Seed completed successfully!');
 }
 
