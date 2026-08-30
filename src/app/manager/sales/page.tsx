@@ -1239,11 +1239,17 @@ export default function RecordSale() {
                    {/* Red margin line */}
                    <div className="ledger-margin-line"></div>
 
-                   {/* Header Title */}
-                   <div className="ledger-header">
-                      <h3 className="ledger-title" style={{ transform: 'rotate(-1deg)' }}>
-                         Ledger Slip
-                      </h3>
+                   {/* Header Title & Company Logo */}
+                   <div className="ledger-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', marginBottom: '8px' }}>
+                      <img src="/logo.png" alt="Logo" style={{ width: '38px', height: '38px', objectFit: 'contain' }} />
+                      <div style={{ textAlign: 'left' }}>
+                        <h3 className="ledger-title" style={{ transform: 'rotate(-1deg)', margin: 0, lineHeight: 1.1, fontSize: '18px' }}>
+                           VARSHNEY ELECTRICAL
+                        </h3>
+                        <span style={{ fontSize: '9px', color: '#555', fontWeight: 'bold', letterSpacing: '1px', textTransform: 'uppercase' }}>
+                          Manufacturing Ledger Dispatch Slip
+                        </span>
+                      </div>
                    </div>
 
                    {/* Metadata block */}

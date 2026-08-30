@@ -61,7 +61,7 @@ export default function Sidebar() {
     <>
       {/* Mobile Sticky Header Bar */}
       <header className="md:hidden fixed top-0 left-0 right-0 h-14 bg-[#141414]/95 backdrop-blur-md border-b border-[#333] z-40 px-4 flex items-center justify-between">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5">
           <button 
             onClick={() => setMobileOpen(true)}
             aria-label="Open Navigation Menu"
@@ -69,6 +69,7 @@ export default function Sidebar() {
           >
             <Menu size={20} />
           </button>
+          <img src="/logo.png" alt="VEI Logo" className="w-8 h-8 object-contain rounded-lg bg-white/95 p-0.5 shadow-sm" />
           <div className="flex flex-col">
             <span className="text-xs font-black tracking-wider text-red-500">VARSHNEY</span>
             <span className="text-[9px] font-bold text-gray-400">ELECTRICAL INDUSTRIES</span>
@@ -91,13 +92,18 @@ export default function Sidebar() {
 
       {/* Sidebar Drawer */}
       <aside className={`w-72 sm:w-64 bg-[#141414] border-r border-[#333] h-screen fixed left-0 top-0 flex flex-col shadow-2xl z-50 ${mobileOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 transition-transform duration-300 ease-out`}>
-      <div className="p-5 border-b border-[#333] bg-[#1a1a1a] flex justify-between items-start">
-        <div>
-          <h1 className="text-base font-bold text-white flex flex-col leading-tight tracking-wider">
-            <span className="text-red-500 font-extrabold">VARSHNEY</span>
-            <span className="text-[10px] text-gray-400 font-black tracking-widest mt-0.5">ELECTRICAL INDUSTRIES</span>
-          </h1>
-          <div className="flex flex-col gap-1.5 mt-2">
+      <div className="p-4 border-b border-[#333] bg-[#1a1a1a] flex justify-between items-start">
+        <div className="w-full">
+          <div className="flex items-center gap-2.5 mb-2">
+            <div className="w-11 h-11 bg-white/95 rounded-xl p-1 flex items-center justify-center shadow-md border border-red-500/30 shrink-0">
+              <img src="/logo.png" alt="Varshney Electrical Logo" className="w-full h-full object-contain" />
+            </div>
+            <div className="flex flex-col leading-tight">
+              <span className="text-xs font-black text-red-500 tracking-wider">VARSHNEY</span>
+              <span className="text-[9px] text-gray-400 font-black tracking-widest mt-0.5">ELECTRICAL IND.</span>
+            </div>
+          </div>
+          <div className="flex flex-col gap-1.5 mt-1">
             <p className="text-xs text-gray-400 font-medium tracking-wide flex items-center gap-1">
               <ShieldCheck size={12} className="text-red-500" />
               REAL ROLE: {realRole.toUpperCase()}

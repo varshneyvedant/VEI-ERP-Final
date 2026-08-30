@@ -2,15 +2,19 @@ import Providers from '@/components/Providers';
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
-import Sidebar from '@/components/layout/Sidebar';
+import AppShell from '@/components/layout/AppShell';
 import NextAuthProvider from '@/components/NextAuthProvider';
 import { Toaster } from 'sonner';
 
-const inter = Inter({ subsets: ['latin'] });
+const inter = Inter({ subsets: ['latin'], display: 'swap', fallback: ['system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'sans-serif'] });
 
 export const metadata: Metadata = {
-  title: 'VEI ERP - Copper Factory ERP',
-  description: 'Internal tracking system for copper manufacturing',
+  title: 'VEI ERP - Varshney Electrical Industries',
+  description: 'Internal tracking & double-entry ERP for copper wire manufacturing',
+  icons: {
+    icon: '/logo.png',
+    apple: '/logo.png',
+  },
 };
 
 import type { Viewport } from 'next';
@@ -33,13 +37,10 @@ export default function RootLayout({
       <body className={inter.className}>
         <NextAuthProvider>
           <Providers>
-            <div className="flex min-h-dvh bg-[#121212] text-white antialiased">
-              <Toaster theme="dark" richColors position="top-right" />
-              <Sidebar />
-              <main className="flex-1 md:ml-64 p-3 sm:p-5 md:p-8 pt-16 md:pt-8 w-full max-w-full overflow-x-hidden min-h-dvh">
-                {children}
-              </main>
-            </div>
+            <Toaster theme="dark" richColors position="top-right" />
+            <AppShell>
+              {children}
+            </AppShell>
           </Providers>
         </NextAuthProvider>
       </body>
