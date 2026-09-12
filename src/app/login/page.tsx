@@ -47,6 +47,9 @@ export default function LoginPage() {
         }
         setLoading(false);
       } else {
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem('vei_auth_session', 'active');
+        }
         toast.success('Identity verified. Loading secure dashboard...');
         router.push('/');
         router.refresh();

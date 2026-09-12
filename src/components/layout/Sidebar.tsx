@@ -308,8 +308,14 @@ export default function Sidebar() {
 
       <div className="p-4 border-t border-[#333]">
         <button
-          onClick={() => signOut({ callbackUrl: '/login' })}
-          className="flex items-center justify-center gap-2 w-full bg-red-950/20 hover:bg-red-900/50 text-red-500 p-2 rounded-md transition-colors font-medium text-sm border border-red-500/20"
+          onClick={() => {
+            if (typeof window !== 'undefined') {
+              sessionStorage.removeItem('vei_auth_session');
+              localStorage.removeItem('simulated_role');
+            }
+            signOut({ callbackUrl: '/login' });
+          }}
+          className="flex items-center justify-center gap-2 w-full bg-red-950/20 hover:bg-red-900/50 text-red-500 p-2 rounded-md transition-colors font-medium text-sm border border-red-500/20 cursor-pointer"
         >
            <LogOut size={16} /> Secure Logout
         </button>
