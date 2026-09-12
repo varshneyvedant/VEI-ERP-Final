@@ -1,22 +1,30 @@
 import { PrismaClient } from '@prisma/client';
-import { subDays, subMonths, startOfYear } from 'date-fns';
+import { subDays, subMonths } from 'date-fns';
 import bcrypt from 'bcrypt';
 import { reconcileFIFOBook } from '../src/lib/ledger/reconciliation';
 
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('Seeding database with updated schema...');
+  console.log('Seeding database with realistic copper factory default values...');
 
-  // 1. Clear existing data
-  await prisma.user.deleteMany();
+  // 1. Clear all existing data cleanly in foreign-key order
+  await prisma.saudaContract.deleteMany();
+  await prisma.invoicePayment.deleteMany();
+  await prisma.billPayment.deleteMany();
+  await prisma.paymentRecord.deleteMany();
   await prisma.customerLedger.deleteMany();
   await prisma.supplierLedger.deleteMany();
+  await prisma.journalLine.deleteMany();
+  await prisma.journalEntry.deleteMany();
+  await prisma.creditNote.deleteMany();
+  await prisma.debitNote.deleteMany();
   await prisma.marketPrice.deleteMany();
   await prisma.expense.deleteMany();
   await prisma.saleItem.deleteMany();
   await prisma.sale.deleteMany();
   await prisma.scrapInventory.deleteMany();
+  await prisma.finishedGoodsBatch.deleteMany();
   await prisma.production.deleteMany();
   await prisma.inventoryBatch.deleteMany();
   await prisma.purchase.deleteMany();
@@ -27,26 +35,23 @@ async function main() {
   await prisma.attendance.deleteMany();
   await prisma.salaryHistory.deleteMany();
   await prisma.employee.deleteMany();
-  await prisma.paymentRecord.deleteMany();
-  await prisma.journalLine.deleteMany();
-  await prisma.journalEntry.deleteMany();
-  await prisma.creditNote.deleteMany();
-  await prisma.debitNote.deleteMany();
-  await prisma.finishedGoodsBatch.deleteMany();
   await prisma.periodLock.deleteMany();
   await prisma.idempotencyRecord.deleteMany();
+  await prisma.user.deleteMany();
 
-  // 1.1 Initial Capital Injection
+  const today = new Date();
+
+  // 1.1 Initial Capital Injection (₹1.50 Crore)
   await prisma.paymentRecord.create({
-     data: {
-       date: subDays(new Date(), 1095), // 3 years ago
-       amount: 3000000000, // 300 Crore initial investment
-       type: "INCOMING",
-       description: 'Initial Capital Injection'
-     }
+    data: {
+      date: subDays(today, 180),
+      amount: 15000000, // ₹1.5 Crore
+      type: "INCOMING",
+      description: 'Initial Capital Injection'
+    }
   });
 
-  // 1.5 Add Admin Users
+  // 1.2 Add Default Admin & Operator Accounts
   const passwordHash = await bcrypt.hash('password123', 10);
   await prisma.user.create({
     data: { username: 'owner', password: passwordHash, role: "OWNER" }
@@ -54,47 +59,50 @@ async function main() {
   await prisma.user.create({
     data: { username: 'manager', password: passwordHash, role: "MANAGER" }
   });
-  console.log('Added secure User accounts (password123)');
+  console.log('✓ Added secure User accounts (owner / manager -> password123)');
 
-  // 2. Add Employees & Salary History
+  // 2. Add Factory Employees & Payroll History
   const emp1 = await prisma.employee.create({
-    data: { name: 'Ramesh Singh', role: 'Worker', baseSalary: 25000 },
+    data: { name: 'Ramesh Singh', role: 'Wire Drawing Technician', baseSalary: 25000 },
   });
   const emp2 = await prisma.employee.create({
-    data: { name: 'Suresh Kumar', role: 'Worker', baseSalary: 28000 },
+    data: { name: 'Suresh Kumar', role: 'Continuous Casting Operator', baseSalary: 28000 },
   });
   const emp3 = await prisma.employee.create({
-    data: { name: 'Amit Patel', role: 'Manager', baseSalary: 55000 },
+    data: { name: 'Amit Patel', role: 'Plant Production Manager', baseSalary: 55000 },
   });
 
-  const today = new Date();
+  await prisma.salaryHistory.create({ data: { employeeId: emp1.id, date: subMonths(today, 12), amount: 22000, reason: 'Joining' } });
+  await prisma.salaryHistory.create({ data: { employeeId: emp1.id, date: subMonths(today, 3), amount: 25000, reason: 'Annual Increment' } });
+  await prisma.salaryHistory.create({ data: { employeeId: emp2.id, date: subMonths(today, 8), amount: 25000, reason: 'Joining' } });
+  await prisma.salaryHistory.create({ data: { employeeId: emp2.id, date: subMonths(today, 2), amount: 28000, reason: 'Appraisal' } });
 
-  // Add historical salaries
-  await prisma.salaryHistory.create({ data: { employeeId: emp1.id, date: subMonths(today, 12), amount: 20000, reason: 'Joining' } });
-  await prisma.salaryHistory.create({ data: { employeeId: emp1.id, date: subMonths(today, 6), amount: 25000, reason: 'Performance' } });
+  console.log('✓ Added factory staff and salary records');
 
-  await prisma.salaryHistory.create({ data: { employeeId: emp2.id, date: subMonths(today, 15), amount: 22000, reason: 'Joining' } });
-  await prisma.salaryHistory.create({ data: { employeeId: emp2.id, date: subMonths(today, 4), amount: 28000, reason: 'Annual Appraisal' } });
-
-  console.log('Added employees and salary history');
-
-  // 3. Add Suppliers & Customers with extended details
+  // 3. Add Verified Suppliers & Customers
   const supplier1 = await prisma.supplier.create({
     data: {
       name: 'Global Copper Ltd',
       contact: '9876543210',
-      address: '123 Industrial Area, Phase 1, Mumbai',
+      address: 'Plot 42, Industrial Area Phase 1, Mumbai',
       gst: '27AABCU9603R1ZM',
-      bankDetails: 'HDFC Bank, Acct: 50100200300400, IFSC: HDFC0001234'
+      pan: 'AABCU9603R',
+      stateCode: '27',
+      bankDetails: 'HDFC Bank, Acct: 50100200300400, IFSC: HDFC0001234',
+      creditBalance: 0
     }
   });
+
   const supplier2 = await prisma.supplier.create({
     data: {
-      name: 'National Metals',
+      name: 'Hindalco Industries',
       contact: '9876543211',
-      address: '45 Metal Park, Delhi',
-      gst: '07BBDCU9603R1ZN',
-      bankDetails: 'SBI Bank, Acct: 30200200300401, IFSC: SBIN0001235'
+      address: 'Aditya Birla Centre, Worli, Mumbai',
+      gst: '27BBDCU9603R1ZN',
+      pan: 'BBDCU9603R',
+      stateCode: '27',
+      bankDetails: 'SBI Bank, Acct: 30200200300401, IFSC: SBIN0001235',
+      creditBalance: 0
     }
   });
 
@@ -104,314 +112,348 @@ async function main() {
       contact: '9123456780',
       address: 'Plot 88, Tech Hub, Pune',
       gst: '27XABCU9603R1ZP',
-      transport: 'Fast Track Logistics'
+      pan: 'XABCU9603R',
+      stateCode: '27',
+      transport: 'Fast Track Logistics',
+      creditLimit: 2500000, // ₹25 Lakhs
+      creditBalance: 0
     }
   });
+
   const customer2 = await prisma.customer.create({
     data: {
       name: 'XYZ Electronics',
       contact: '9123456781',
       address: 'Sector 5, Electronics City, Bangalore',
       gst: '29YABCU9603R1ZQ',
-      transport: 'Safe Express'
+      pan: 'YABCU9603R',
+      stateCode: '29',
+      transport: 'Safe Express',
+      creditLimit: 1500000, // ₹15 Lakhs
+      creditBalance: 0
     }
   });
 
-  console.log('Added suppliers and customers');
+  console.log('✓ Added suppliers & customers with credit limits');
 
-  // 4. Generate Historical Data spanning ~3 years (To test long timeframes)
+  // 4. Add Active Sauda Contracts for Testing
+  await prisma.saudaContract.create({
+    data: {
+      contractNo: 'SAU-2026-001',
+      customerId: customer1.id,
+      bookingDate: subDays(today, 10),
+      expiryDate: subDays(today, -20), // Valid for next 20 days
+      totalQtyTons: 50.00,
+      remainingQty: 34.00, // 34 Tons remaining
+      ratePerKg: 840.00,   // ₹840/kg (₹840,000/ton)
+      status: 'ACTIVE',
+      notes: 'Quarterly CC Wire Booking'
+    }
+  });
 
-  // Market Prices (Daily for last 1000 days)
-  // COPPER PRICE: ~12 Lakh per Ton (12,000,000)
-  for (let i = 0; i < 1000; i++) {
+  await prisma.saudaContract.create({
+    data: {
+      contractNo: 'SAU-2026-002',
+      customerId: customer2.id,
+      bookingDate: subDays(today, 5),
+      expiryDate: subDays(today, -25),
+      totalQtyTons: 25.00,
+      remainingQty: 20.00, // 20 Tons remaining
+      ratePerKg: 850.00,   // ₹850/kg
+      status: 'ACTIVE',
+      notes: 'Submersible Winding Wire Booking'
+    }
+  });
+
+  console.log('✓ Created active Sauda contracts (ABC Cables: 34T @ ₹840, XYZ: 20T @ ₹850)');
+
+  // 5. Daily Market Prices (Last 90 Days) -> ~₹835 - ₹860/kg
+  for (let i = 0; i < 90; i++) {
     const d = subDays(today, i);
-    const randomPrice = 1180000 + Math.random() * 50000;
+    const dailyCopperRate = 835000 + Math.floor(Math.random() * 25000); // ₹835 - ₹860 / kg
     await prisma.marketPrice.create({
-      data: { date: d, price: randomPrice }
+      data: { date: d, price: dailyCopperRate }
     });
   }
+  console.log('✓ Added realistic daily MCX copper prices (~₹840/kg)');
 
-  console.log('Added market prices');
+  // 6. Purchases of Raw Copper Rod (Last 60 Days)
+  const purchasesList = [
+    { daysAgo: 50, qty: 20.0, pricePerTon: 835000, supplier: supplier1, isPaid: true },
+    { daysAgo: 35, qty: 25.0, pricePerTon: 840000, supplier: supplier2, isPaid: true },
+    { daysAgo: 20, qty: 20.0, pricePerTon: 842000, supplier: supplier1, isPaid: true },
+    { daysAgo: 8,  qty: 25.0, pricePerTon: 845000, supplier: supplier2, isPaid: false },
+    { daysAgo: 2,  qty: 20.0, pricePerTon: 848000, supplier: supplier1, isPaid: false }
+  ];
 
-  // Purchases (Every ~10 days over 3 years = ~100 purchases)
-  // We need to ensure we buy more than we produce so FIFO logic doesn't hit zero remaining stock
-  for (let i = 0; i < 110; i++) {
-    const d = subDays(today, i * 10);
-    const qty = 15 + Math.random() * 10; // 15 to 25 Tons
-    const pricePerTon = 1190000 + Math.random() * 30000;
-    const supplier = i % 2 === 0 ? supplier1 : supplier2;
-    const totalValue = qty * pricePerTon;
-
-    // 80% chance of being fully paid, 20% chance of being completely unpaid (0 paid)
-    const isFullyPaid = Math.random() < 0.8;
-    const amountPaid = isFullyPaid ? totalValue : 0;
-    const fullyPaidDate = isFullyPaid ? subDays(d, 3) : null;
+  for (const p of purchasesList) {
+    const pDate = subDays(today, p.daysAgo);
+    const totalVal = p.qty * p.pricePerTon;
+    const amtPaid = p.isPaid ? totalVal : 0;
 
     const purchase = await prisma.purchase.create({
       data: {
-        supplierId: supplier.id,
-        date: d,
-        qty: qty,
-        pricePerTon: pricePerTon,
-        totalValue: totalValue,
-        amountPaid: amountPaid,
-        fullyPaidDate: fullyPaidDate
+        supplierId: p.supplier.id,
+        date: pDate,
+        qty: p.qty,
+        pricePerTon: p.pricePerTon,
+        totalValue: totalVal,
+        amountPaid: amtPaid,
+        fullyPaidDate: p.isPaid ? subDays(pDate, 2) : null
       }
     });
 
     await prisma.inventoryBatch.create({
       data: {
         purchaseId: purchase.id,
-        date: d,
-        initialQty: qty,
-        remainingQty: qty, // For dummy data, we will just leave it as if it's all remaining, or calculate? Wait, if we leave it all as remaining, the logic will work but might be technically slightly off from the production aggregate. Actually, it's better to calculate remaining, but since this is seed, we can just let the system deduct dynamically or let it be. Let's just set remainingQty to qty for seed data, it's a dummy dashboard anyway.
-        pricePerTon: pricePerTon
+        date: pDate,
+        initialQty: p.qty,
+        remainingQty: p.qty,
+        pricePerTon: p.pricePerTon
       }
     });
 
     await prisma.supplierLedger.create({
       data: {
-        supplierId: supplier.id,
-        date: d,
-        amount: totalValue,
-        description: `Purchase of ${qty.toFixed(2)} Tons`
+        supplierId: p.supplier.id,
+        date: pDate,
+        amount: totalVal,
+        description: `Raw Copper Purchase (${p.qty}T @ ₹${(p.pricePerTon / 1000).toFixed(0)}/kg)`
       }
     });
 
-    // Make payment a few days later
-    await prisma.supplierLedger.create({
-      data: {
-        supplierId: supplier.id,
-        date: subDays(d, 3),
-        amount: -amountPaid,
-        description: `Payment for Purchase ${purchase.id}`
-      }
-    });
-
-    if (amountPaid > 0) {
-      const pRec = await prisma.paymentRecord.create({
+    if (p.isPaid) {
+      await prisma.supplierLedger.create({
         data: {
-          date: subDays(d, 3),
-          amount: amountPaid,
-          type: "OUTGOING",
-          supplierId: supplier.id,
-          description: `Payment for Purchase ${purchase.id}`
+          supplierId: p.supplier.id,
+          date: subDays(pDate, 2),
+          amount: -totalVal,
+          description: `Bank Payment for Purchase ID: ${purchase.id}`
         }
       });
+
+      const pRec = await prisma.paymentRecord.create({
+        data: {
+          date: subDays(pDate, 2),
+          amount: totalVal,
+          type: "OUTGOING",
+          supplierId: p.supplier.id,
+          description: `Payment to ${p.supplier.name} for ${p.qty}T Copper Rod`
+        }
+      });
+
       await prisma.billPayment.create({
-         data: {
-            paymentRecordId: pRec.id,
-            purchaseId: purchase.id,
-            amountApplied: amountPaid
-         }
+        data: {
+          paymentRecordId: pRec.id,
+          purchaseId: purchase.id,
+          amountApplied: totalVal
+        }
       });
     }
   }
+  console.log('✓ Added realistic raw copper purchases & supplier ledger entries');
 
-  console.log('Added purchases and supplier ledgers');
-
-  // Production (Daily)
+  // 7. Manufacturing & Finished Goods Production
   const ccBrands = ['Poly Vansh', 'Poly Unnati', 'Poly Unique Plus', 'Poly Unique Plus Premium'];
   const subBrands = ['Poly Lifeline', 'Poly Life Plus'];
 
-  for (let i = 0; i < 1000; i++) {
-    const d = subDays(today, i);
-    const rawUsed = 0.5 + Math.random() * 1; // 0.5 to 1.5 Tons daily
-    const yieldPercent = 0.95 + Math.random() * 0.04;
-    const wireProduced = rawUsed * yieldPercent;
+  for (let i = 0; i < 45; i++) {
+    const pDate = subDays(today, i);
+    const rawUsed = 1.5 + (i % 3) * 0.5; // 1.5T to 2.5T daily
+    const wireProduced = rawUsed * 0.97;  // 97% yield
+    const scrapGen = rawUsed - wireProduced; // 3% scrap
 
-    const isCC = i % 3 !== 0; // 66% CC Wires, 33% Submersible
-    const productCategory = isCC ? 'CC Wires' : 'Submersible Winding Wire';
+    const isCC = i % 2 === 0;
+    const category = isCC ? 'CC Wires' : 'Submersible Winding Wire';
     const brand = isCC ? ccBrands[i % ccBrands.length] : subBrands[i % subBrands.length];
+    const wireSize = (i % 3 === 0) ? '1mm' : (i % 3 === 1) ? '2mm' : '3mm';
 
-    const scrapGen = rawUsed - wireProduced;
-
-    const production = await prisma.production.create({
+    await prisma.production.create({
       data: {
-        date: d,
+        date: pDate,
         rawCopperUsed: rawUsed,
-        productCategory,
+        productCategory: category,
         brand,
-        wireType: i % 2 === 0 ? '1mm' : '2mm',
-        wireProduced: wireProduced,
+        wireType: wireSize,
+        wireProduced,
         scrapGenerated: scrapGen,
         finishedGoodsBatch: {
-           create: {
-              date: d,
-              productCategory,
-              brand,
-              wireType: i % 2 === 0 ? '1mm' : '2mm',
-              initialQty: wireProduced,
-              remainingQty: wireProduced,
-              costPerTon: 1190000 // Dummy cost for seed
-           }
+          create: {
+            date: pDate,
+            productCategory: category,
+            brand,
+            wireType: wireSize,
+            initialQty: wireProduced,
+            remainingQty: wireProduced,
+            costPerTon: 845000
+          }
         }
       }
     });
 
     await prisma.scrapInventory.create({
       data: {
-         date: d,
-         type: "GENERATED",
-         qty: scrapGen
+        date: pDate,
+        type: "GENERATED",
+        qty: scrapGen
       }
     });
 
-    // Randomly sell scrap back to market
-    if (i % 15 === 0) {
-       const scrapSellQty = scrapGen * 10; // Sell roughly a batch of accumulated scrap
-       const revenue = scrapSellQty * 1000000; // ~10 Lakh per ton for scrap copper
-       const scrapSale = await prisma.scrapInventory.create({
-          data: {
-             date: subDays(d, 1),
-             type: "SOLD",
-             qty: scrapSellQty,
-             revenue: revenue
-          }
-       });
-       await prisma.paymentRecord.create({
-          data: {
-             date: subDays(d, 1),
-             amount: revenue,
-             type: "INCOMING",
-             scrapSaleId: scrapSale.id,
-             description: `Scrap Copper Sale (${scrapSellQty.toFixed(2)} Tons)`
-          }
-       });
+    // Monthly scrap sales
+    if (i % 15 === 0 && i > 0) {
+      const scrapSaleQty = 2.0;
+      const scrapRev = scrapSaleQty * 780000; // Scrap sold @ ₹780/kg
+      const scrapSale = await prisma.scrapInventory.create({
+        data: {
+          date: subDays(pDate, 1),
+          type: "SOLD",
+          qty: scrapSaleQty,
+          revenue: scrapRev
+        }
+      });
+
+      await prisma.paymentRecord.create({
+        data: {
+          date: subDays(pDate, 1),
+          amount: scrapRev,
+          type: "INCOMING",
+          scrapSaleId: scrapSale.id,
+          description: `Scrap Copper Sale (${scrapSaleQty} Tons)`
+        }
+      });
     }
   }
+  console.log('✓ Added daily production logs across all brands & wire sizes');
 
-  console.log('Added production logs');
+  // 8. Sales Invoices & Customer Dispatches
+  const salesList = [
+    { daysAgo: 30, customer: customer1, qty: 8.0, rateKg: 875, brand: 'Poly Vansh', size: '1mm', isPaid: true },
+    { daysAgo: 22, customer: customer2, qty: 5.0, rateKg: 885, brand: 'Poly Lifeline', size: '2mm', isPaid: true },
+    { daysAgo: 15, customer: customer1, qty: 10.0, rateKg: 840, brand: 'Poly Unnati', size: '1mm', isPaid: true, saudaId: null },
+    { daysAgo: 8,  customer: customer2, qty: 6.0, rateKg: 880, brand: 'Poly Life Plus', size: '2mm', isPaid: false },
+    { daysAgo: 3,  customer: customer1, qty: 6.0, rateKg: 840, brand: 'Poly Unique Plus', size: '1mm', isPaid: false },
+    { daysAgo: 1,  customer: customer1, qty: 4.0, rateKg: 875, brand: 'Poly Vansh', size: '2mm', isPaid: false }
+  ];
 
-  // Sales (Every ~5 days over 3 years)
-  for (let i = 0; i < 200; i++) {
-    const d = subDays(today, i * 5);
-    const customer = i % 3 === 0 ? customer1 : customer2;
-
-    // Multiple items per sale
-    const qty1 = 2 + Math.random() * 3;
-    const pricePerTon1 = 1250000 + Math.random() * 20000;
-    const qty2 = 1 + Math.random() * 2;
-    const pricePerTon2 = 1260000 + Math.random() * 20000;
-
-    const totalSaleValue = (qty1 * pricePerTon1) + (qty2 * pricePerTon2);
-
-    const isRawCopper = i % 10 === 0;
-
-    // Simulate an exact FIFO cost from that historical day (approx 1,180,000)
-    const exactHistoricalCost = 1180000 + Math.random() * 5000;
-
-    const itemsData = isRawCopper ? [
-        { productCategory: 'Raw Copper Bundle', brand: null, wireType: null, qty: qty1, pricePerTon: pricePerTon1, totalValue: qty1 * pricePerTon1, rawCopperCostAtSale: exactHistoricalCost }
-    ] : [
-        { productCategory: 'CC Wires', brand: ccBrands[i % ccBrands.length], wireType: '1mm', qty: qty1, pricePerTon: pricePerTon1, totalValue: qty1 * pricePerTon1, rawCopperCostAtSale: exactHistoricalCost },
-        { productCategory: 'Submersible Winding Wire', brand: subBrands[i % subBrands.length], wireType: '2mm', qty: qty2, pricePerTon: pricePerTon2, totalValue: qty2 * pricePerTon2, rawCopperCostAtSale: exactHistoricalCost }
-    ];
-
-    const finalTotalValue = isRawCopper ? (qty1 * pricePerTon1) : totalSaleValue;
-
-    // 80% chance of being fully paid, 20% chance of being completely unpaid (0 paid)
-    const isSaleFullyPaid = Math.random() < 0.8;
-    const amountPaid = isSaleFullyPaid ? finalTotalValue : 0;
-    const fullyPaidDate = isSaleFullyPaid ? subDays(d, 4) : null;
+  for (const s of salesList) {
+    const sDate = subDays(today, s.daysAgo);
+    const pricePerTon = s.rateKg * 1000;
+    const totalVal = s.qty * pricePerTon;
+    const amtPaid = s.isPaid ? totalVal : 0;
 
     const sale = await prisma.sale.create({
       data: {
-        customerId: customer.id,
-        date: d,
-        totalValue: finalTotalValue,
-        amountPaid: amountPaid,
-        fullyPaidDate: fullyPaidDate,
+        customerId: s.customer.id,
+        date: sDate,
+        totalValue: totalVal,
+        amountPaid: amtPaid,
+        fullyPaidDate: s.isPaid ? subDays(sDate, 2) : null,
         items: {
-          create: itemsData
+          create: [
+            {
+              productCategory: s.brand.includes('Life') ? 'Submersible Winding Wire' : 'CC Wires',
+              brand: s.brand,
+              wireType: s.size,
+              qty: s.qty,
+              pricePerTon,
+              totalValue: totalVal,
+              rawCopperCostAtSale: 842000
+            }
+          ]
         }
       }
     });
 
     await prisma.customerLedger.create({
       data: {
-        customerId: customer.id,
-        date: d,
-        amount: finalTotalValue,
-        description: `Invoice Sale ID: ${sale.id}`
+        customerId: s.customer.id,
+        date: sDate,
+        amount: totalVal,
+        description: `Invoice: ${s.qty}T ${s.brand} ${s.size} @ ₹${s.rateKg}/kg`
       }
     });
 
-    // Customer pays
-    await prisma.customerLedger.create({
+    if (s.isPaid) {
+      await prisma.customerLedger.create({
         data: {
-          customerId: customer.id,
-          date: subDays(d, 4),
-          amount: -amountPaid,
-          description: `Payment for Sale ${sale.id}`
+          customerId: s.customer.id,
+          date: subDays(sDate, 2),
+          amount: -totalVal,
+          description: `Payment received for Invoice ID: ${sale.id}`
         }
       });
 
-    if (amountPaid > 0) {
       const pRec = await prisma.paymentRecord.create({
         data: {
-          date: subDays(d, 4),
-          amount: amountPaid,
+          date: subDays(sDate, 2),
+          amount: totalVal,
           type: "INCOMING",
-          customerId: customer.id,
-          description: `Payment for Sale ${sale.id}`
+          customerId: s.customer.id,
+          description: `Customer Payment from ${s.customer.name}`
         }
       });
+
       await prisma.invoicePayment.create({
-         data: {
-            paymentRecordId: pRec.id,
-            saleId: sale.id,
-            amountApplied: amountPaid
-         }
+        data: {
+          paymentRecordId: pRec.id,
+          saleId: sale.id,
+          amountApplied: totalVal
+        }
       });
     }
   }
+  console.log('✓ Added sales invoices and customer balances');
 
-  console.log('Added sales and customer ledgers');
-
-  // Expenses (Monthly over 3 years)
+  // 9. Monthly Operating Expenses (Last 6 Months)
   const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  for (let i = 0; i < 6; i++) {
+    const eDate = subMonths(today, i);
+    const monthName = `${months[eDate.getMonth()]} ${eDate.getFullYear()}`;
 
-  for (let i = 0; i < 36; i++) {
-    const d = subMonths(today, i);
-    const monthName = `${months[d.getMonth()]} ${d.getFullYear()}`;
-
-    await prisma.expense.create({ data: { date: d, category: 'Electricity', amount: 300000 + Math.random() * 50000, expenseMonth: monthName, status: 'PAID' } });
-    await prisma.expense.create({ data: { date: d, category: 'Rent', amount: 200000, expenseMonth: monthName, status: 'PAID' } });
-    await prisma.expense.create({ data: { date: d, category: 'Maintenance', amount: 50000 + Math.random() * 10000, expenseMonth: monthName, status: 'PAID' } });
-    await prisma.expense.create({ data: { date: d, category: 'Water', amount: 15000, expenseMonth: monthName, status: 'PAID' } });
-    await prisma.expense.create({ data: { date: d, category: 'Salaries', amount: 250000 + Math.random() * 20000, expenseMonth: monthName, status: 'PAID' } });
+    await prisma.expense.create({ data: { date: eDate, category: 'Electricity', amount: 85000 + (i * 2000), expenseMonth: monthName, status: 'PAID' } });
+    await prisma.expense.create({ data: { date: eDate, category: 'Factory Rent', amount: 65000, expenseMonth: monthName, status: 'PAID' } });
+    await prisma.expense.create({ data: { date: eDate, category: 'Salaries', amount: 108000, expenseMonth: monthName, status: 'PAID' } });
+    await prisma.expense.create({ data: { date: eDate, category: 'Maintenance & Dies', amount: 22000, expenseMonth: monthName, status: 'PAID' } });
   }
+  console.log('✓ Added monthly plant operating expenses');
 
-  console.log('Added expenses');
-
-  // Advances
-  const adv1 = await prisma.advance.create({ data: { employeeId: emp1.id, date: subDays(today, 10), amount: 15000, reason: 'Medical' } });
-  const adv2 = await prisma.advance.create({ data: { employeeId: emp1.id, date: subDays(today, 40), amount: 150000, amountRepaid: 50000, reason: 'Wedding' } }); // High advance to test warning
-  const adv3 = await prisma.advance.create({ data: { employeeId: emp2.id, date: subDays(today, 5), amount: 5000, reason: 'Personal' } });
+  // 10. Advances & Attendance
+  const adv1 = await prisma.advance.create({ data: { employeeId: emp1.id, date: subDays(today, 15), amount: 5000, reason: 'Medical Checkup' } });
+  const adv2 = await prisma.advance.create({ data: { employeeId: emp2.id, date: subDays(today, 25), amount: 10000, amountRepaid: 5000, reason: 'Festival Advance' } });
 
   await prisma.advanceRepayment.create({
-     data: {
-        advanceId: adv2.id,
-        amount: 50000,
-        date: subDays(today, 15)
-     }
+    data: {
+      advanceId: adv2.id,
+      amount: 5000,
+      date: subDays(today, 10)
+    }
   });
 
-  console.log('Added advances');
-
-  // Attendance (Last 100 days)
-  for(let i=0; i<100; i++) {
-     const d = subDays(today, i);
-     await prisma.attendance.create({ data: { employeeId: emp1.id, date: d, status: i % 10 === 0 ? 'Absent' : 'Present' }});
-     await prisma.attendance.create({ data: { employeeId: emp2.id, date: d, status: i % 15 === 0 ? 'Half_day' : 'Present' }});
-     await prisma.attendance.create({ data: { employeeId: emp3.id, date: d, status: "Present" }});
+  for (let i = 0; i < 30; i++) {
+    const aDate = subDays(today, i);
+    await prisma.attendance.create({ data: { employeeId: emp1.id, date: aDate, status: i % 7 === 0 ? 'Absent' : 'Present' } });
+    await prisma.attendance.create({ data: { employeeId: emp2.id, date: aDate, status: i % 10 === 0 ? 'Half_day' : 'Present' } });
+    await prisma.attendance.create({ data: { employeeId: emp3.id, date: aDate, status: "Present" } });
   }
 
-  console.log('Added attendance');
-  console.log('Reconciling FIFO book...');
+  // 11. Reconcile FIFO Book & Recalculate Actual Stock Balances
+  console.log('⚙️ Reconciling FIFO inventory and ledger books...');
   await reconcileFIFOBook(prisma);
-  console.log('Seed completed successfully!');
+
+  // 12. Update Customer / Supplier Outstanding Balances to match Ledger
+  const allCust = await prisma.customer.findMany({ include: { ledgers: true } });
+  for (const c of allCust) {
+    const netBal = c.ledgers.reduce((acc, l) => acc + Number(l.amount), 0);
+    await prisma.customer.update({ where: { id: c.id }, data: { creditBalance: netBal } });
+  }
+
+  const allSupp = await prisma.supplier.findMany({ include: { ledgers: true } });
+  for (const s of allSupp) {
+    const netBal = s.ledgers.reduce((acc, l) => acc + Number(l.amount), 0);
+    await prisma.supplier.update({ where: { id: s.id }, data: { creditBalance: netBal } });
+  }
+
+  console.log('✨ Seed and balance synchronization completed successfully!');
 }
 
 main()
@@ -421,4 +463,4 @@ main()
   })
   .finally(async () => {
     await prisma.$disconnect();
-  });
+  });
