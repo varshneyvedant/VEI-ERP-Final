@@ -115,7 +115,19 @@ export const authOptions: NextAuthOptions = {
   },
   session: {
     strategy: 'jwt',
-    maxAge: 8 * 60 * 60, // 8 hours max workday session (force re-login for security)
+    maxAge: 30 * 60, // 30 minutes max inactive session timeout
+  },
+  cookies: {
+    sessionToken: {
+      name: process.env.NODE_ENV === 'production' ? '__Secure-next-auth.session-token' : 'next-auth.session-token',
+      options: {
+        httpOnly: true,
+        sameSite: 'lax',
+        path: '/',
+        secure: process.env.NODE_ENV === 'production',
+        // Omitting maxAge forces browser to treat this as a Session-Only cookie (destroyed when browser closes)
+      }
+    }
   },
   secret: process.env.NEXTAUTH_SECRET!,
 };
