@@ -1,4 +1,4 @@
-﻿export const dynamic = "force-dynamic";
+export const dynamic = "force-dynamic";
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
@@ -86,14 +86,14 @@ export async function GET(request: Request) {
 
       const creditDays = c.creditDays || 18;
       const isOverdue = maxOverdueDays > creditDays;
-      const isLimitExceeded = pendingAmount > Number(c.creditLimit || 2500000);
+      const isLimitExceeded = pendingAmount > Number(c.creditLimit || 7000000);
 
       return {
         id: c.id,
         name: c.name,
         type: 'Customer',
         contact: c.contact,
-        creditLimit: Number(c.creditLimit || 2500000),
+        creditLimit: Number(c.creditLimit || 7000000),
         creditDays,
         maxOverdueDays,
         isOverdue,

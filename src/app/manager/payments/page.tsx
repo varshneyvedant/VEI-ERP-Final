@@ -193,7 +193,7 @@ export default function PaymentsPage() {
                 </span>
                 {type === 'customer' && selectedStakeholder.creditDays && (
                   <span className="text-[11px] text-gray-500">
-                    Limit: ₹{Number(selectedStakeholder.creditLimit || 2500000).toLocaleString('en-IN')} ({selectedStakeholder.creditDays}d)
+                    Limit: ₹{Number(selectedStakeholder.creditLimit || 7000000).toLocaleString('en-IN')} ({selectedStakeholder.creditDays}d)
                   </span>
                 )}
               </div>

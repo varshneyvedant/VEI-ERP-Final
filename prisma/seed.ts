@@ -115,7 +115,7 @@ async function main() {
       pan: 'XABCU9603R',
       stateCode: '27',
       transport: 'Fast Track Logistics',
-      creditLimit: 2500000, // ₹25 Lakhs
+      creditLimit: 7000000, // ₹70 Lakhs
       creditBalance: 0
     }
   });
@@ -129,7 +129,7 @@ async function main() {
       pan: 'YABCU9603R',
       stateCode: '29',
       transport: 'Safe Express',
-      creditLimit: 1500000, // ₹15 Lakhs
+      creditLimit: 7000000, // ₹70 Lakhs
       creditBalance: 0
     }
   });

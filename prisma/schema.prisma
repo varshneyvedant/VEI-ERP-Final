@@ -174,7 +174,7 @@ model Customer {
   pan           String?
   transport     String?
   creditBalance Decimal          @default(0)
-  creditLimit   Decimal          @default(2500000) // Default 25 Lakhs
+  creditLimit   Decimal          @default(7000000) // Default 70 Lakhs
   creditDays    Int              @default(18)      // Default 18 Days
   createdAt     DateTime         @default(now())
   updatedAt     DateTime         @updatedAt

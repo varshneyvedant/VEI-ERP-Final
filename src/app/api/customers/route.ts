@@ -39,12 +39,12 @@ export async function GET(request: Request) {
         address: c.address,
         gst: c.gst,
         transport: c.transport,
-        creditLimit: Number(c.creditLimit || 2500000),
+        creditLimit: Number(c.creditLimit || 7000000),
         creditDays: c.creditDays || 18,
         currentBalance,
         oldestUnpaidDays,
         isOverdue: oldestUnpaidDays > (c.creditDays || 18),
-        isLimitExceeded: currentBalance > Number(c.creditLimit || 2500000)
+        isLimitExceeded: currentBalance > Number(c.creditLimit || 7000000)
       };
     });
 

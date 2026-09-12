@@ -249,7 +249,7 @@ export async function POST(request: Request) {
         return isUnpaid && isPastDue;
       });
 
-      const creditLimit = Number(customer.creditLimit || 2500000);
+      const creditLimit = Number(customer.creditLimit || 7000000);
       const isLimitExceeded = currentBalance > creditLimit;
 
       // Active Sauda Bypass Check: If customer has active Sauda contracts, selling at Spot Price requires Owner PIN
